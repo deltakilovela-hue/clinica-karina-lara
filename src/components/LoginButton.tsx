@@ -3,6 +3,8 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
+const CORREOS_AUTORIZADOS = ["Ln.karynalaras@gmail.com", "deltakilo.vela@gmail.com"];
+
 export default function LoginButton() {
   const router = useRouter();
 
@@ -12,7 +14,7 @@ export default function LoginButton() {
       const result = await signInWithPopup(auth, provider);
       const email = result.user.email;
 
-      if (email === "Ln.karynalaras@gmail.com") {
+      if (email && CORREOS_AUTORIZADOS.includes(email)) {
         router.push("/dashboard");
       } else {
         await auth.signOut();
@@ -26,9 +28,15 @@ export default function LoginButton() {
   return (
     <button
       onClick={handleLogin}
-      className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-xl px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 hover:shadow-md transition-all duration-200"
+      className="flex items-center justify-center gap-3 px-8 py-3 rounded-xl font-medium text-sm transition-all duration-200 hover:opacity-90 hover:scale-105"
+      style={{
+        background: 'rgba(255,255,255,0.08)',
+        border: '1px solid rgba(255,255,255,0.15)',
+        color: 'white',
+        backdropFilter: 'blur(10px)',
+      }}
     >
-      <svg width="20" height="20" viewBox="0 0 48 48">
+      <svg width="18" height="18" viewBox="0 0 48 48">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
         <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
         <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
