@@ -17,7 +17,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || user.email !== CORREO_AUTORIZADO) {
+      if (!user || !CORREOS_AUTORIZADOS.includes(user.email ?? '')) {
         router.push('/')
         return
       }
