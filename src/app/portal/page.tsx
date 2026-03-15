@@ -8,7 +8,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Paciente } from '@/lib/pacientes'
 
-const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com']
+const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
 export default function PortalPage() {
   const router = useRouter()
