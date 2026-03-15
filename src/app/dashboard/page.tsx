@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const modulos = [
     { nombre: 'Gestión de Pacientes', descripcion: 'Crear y administrar expedientes', href: '/pacientes', icono: '👥', listo: true },
     { nombre: 'Historia Clínica', descripcion: 'Antecedentes y diagnósticos', href: '#', icono: '📋', listo: false },
-    { nombre: 'Antropometría', descripcion: 'Peso, talla y percentiles', href: '#', icono: '📏', listo: false },
+    { nombre: 'Antropometría', descripcion: 'Peso, talla y percentiles', href: '#', icono: '📏', listo: true },
     { nombre: 'Plan Nutricional IA', descripcion: 'Generado con Claude API', href: '#', icono: '🧠', listo: false },
     { nombre: 'Seguimiento Digestivo', descripcion: 'Evolución y síntomas GI', href: '#', icono: '📊', listo: false },
     { nombre: 'Expediente Completo', descripcion: 'Historial integral del paciente', href: '#', icono: '🗂️', listo: false },
