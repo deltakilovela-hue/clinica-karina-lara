@@ -15,17 +15,22 @@ export default function Home() {
   const [cargando, setCargando] = useState(false)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) return
-      if (user.email && ADMINS.includes(user.email)) {
-        router.push('/dashboard')
-      } else {
-        router.push('/portal')
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) { router.replace('/'); return }
+      if (!ADMINS.includes(user.email ?? '')) { router.replace('/'); return }
+      
+      setUsuario(user?.displayName || user?.email || '')
+      try {
+        const lista = await obtenerPacientes()
+        setPacientes(lista)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setCargando(false)
       }
     })
     return () => unsub()
   }, [router])
-
   const loginGoogle = async () => {
     try {
       setCargando(true)
