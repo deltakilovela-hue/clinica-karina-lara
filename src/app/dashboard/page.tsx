@@ -23,149 +23,126 @@ export default function DashboardPage() {
       try {
         const lista = await obtenerPacientes()
         setPacientes(lista)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setCargando(false)
-      }
+      } catch (e) { console.error(e) }
+      finally { setCargando(false) }
     })
     return () => unsub()
   }, [router])
 
-  const cerrarSesion = async () => {
-    await signOut(auth)
-    router.replace('/')
-  }
-
+  const cerrarSesion = async () => { await signOut(auth); router.replace('/') }
   const hoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
   if (cargando) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a0a05' }}>
-      <div className="text-center">
-        <div className="w-12 h-12 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-amber-200/60 font-light tracking-widest text-sm uppercase">Cargando...</p>
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAF7F2' }}>
+      <div style={{ width: '40px', height: '40px', border: '3px solid #E8DDD0', borderTopColor: '#7B1B2A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 
   const modulos = [
-    { nombre: 'Gestión de Pacientes', descripcion: 'Crear y administrar expedientes', href: '/pacientes', icono: '👥', listo: true },
-    { nombre: 'Historia Clínica', descripcion: 'Antecedentes y diagnósticos', href: '#', icono: '📋', listo: false },
-    { nombre: 'Antropometría', descripcion: 'Peso, talla y percentiles', href: '#', icono: '📏', listo: true },
-    { nombre: 'Plan Nutricional IA', descripcion: 'Generado con Claude API', href: '#', icono: '🧠', listo: false },
-    { nombre: 'Seguimiento Digestivo', descripcion: 'Evolución y síntomas GI', href: '#', icono: '📊', listo: false },
-    { nombre: 'Expediente Completo', descripcion: 'Historial integral del paciente', href: '#', icono: '🗂️', listo: false },
+    { nombre: 'Gestión de Pacientes', desc: 'Crear y administrar expedientes', href: '/pacientes', icono: '👥', activo: true },
+    { nombre: 'Historia Clínica', desc: 'Antecedentes y diagnósticos', href: '#', icono: '📋', activo: false },
+    { nombre: 'Antropometría', desc: 'Peso, talla y percentiles OMS', href: '#', icono: '📏', activo: true },
+    { nombre: 'Plan Nutricional IA', desc: 'Generado con Claude API', href: '#', icono: '🧠', activo: false },
+    { nombre: 'Seguimiento Digestivo', desc: 'Evolución y síntomas GI', href: '#', icono: '📊', activo: false },
+    { nombre: 'Expediente Completo', desc: 'Historial integral', href: '#', icono: '🗂️', activo: false },
   ]
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #1a0a05 0%, #2d0f0a 50%, #1a0505 100%)' }}>
-      <header style={{ borderBottom: '1px solid rgba(180, 120, 60, 0.2)', background: 'rgba(0,0,0,0.3)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
-              style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: '#fff' }}>KL</div>
+    <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+
+      <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '13px', fontWeight: '700', fontFamily: "'Playfair Display', serif" }}>KL</div>
             <div>
-              <h1 className="text-white font-semibold tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>Clínica Karina Lara</h1>
-              <p className="text-xs" style={{ color: 'rgba(180,120,60,0.8)' }}>Nutrición Clínica Especializada</p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontWeight: '600', fontSize: '16px', color: '#2C1810' }}>Clínica Karina Lara</p>
+              <p style={{ fontSize: '11px', color: '#8B6914' }}>Nutrición Clínica Especializada</p>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <p className="text-sm hidden md:block" style={{ color: 'rgba(255,255,255,0.4)' }}>{hoy}</p>
-            <p className="text-sm text-white/70 hidden sm:block">{usuario}</p>
-            <button onClick={cerrarSesion} className="text-xs px-4 py-2 rounded transition-all"
-              style={{ border: '1px solid rgba(180,120,60,0.3)', color: 'rgba(180,120,60,0.8)' }}>Salir</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <p style={{ fontSize: '13px', color: '#9B7B65' }}>{hoy}</p>
+            <p style={{ fontSize: '13px', color: '#6B4F3A' }}>{usuario}</p>
+            <button onClick={cerrarSesion} style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '13px', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Salir</button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="mb-10">
-          <h2 className="text-3xl font-light text-white mb-1" style={{ fontFamily: 'Georgia, serif' }}>
-            Buenos días, <span style={{ color: '#C43B3B' }}>Karina</span>
-          </h2>
-          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Sistema de gestión clínica nutricional pediátrica</p>
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 24px' }}>
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '32px', fontWeight: '600', color: '#2C1810', marginBottom: '6px' }}>
+            Buenos días, <span style={{ color: '#7B1B2A' }}>Karina</span>
+          </h1>
+          <p style={{ color: '#9B7B65', fontSize: '14px' }}>{hoy}</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
           {[
-            { label: 'Pacientes Activos', valor: pacientes.length },
-            { label: 'Consultas Hoy', valor: 0 },
+            { label: 'Pacientes Activos', valor: pacientes.length, color: '#7B1B2A' },
+            { label: 'Consultas Hoy', valor: 0, color: '#8B6914' },
             { label: 'Nuevos este Mes', valor: pacientes.filter(p => {
               if (!p.fechaCreacion) return false
-              const fecha = p.fechaCreacion.toDate()
-              const ahora = new Date()
-              return fecha.getMonth() === ahora.getMonth() && fecha.getFullYear() === ahora.getFullYear()
-            }).length },
-            { label: 'Planes Generados', valor: 0 },
-          ].map((stat) => (
-            <div key={stat.label} className="p-5 rounded-xl"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-3xl font-light text-white mb-1">{stat.valor}</p>
-              <p className="text-xs tracking-wider uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>{stat.label}</p>
+              const f = p.fechaCreacion.toDate(), a = new Date()
+              return f.getMonth() === a.getMonth() && f.getFullYear() === a.getFullYear()
+            }).length, color: '#2D6A4F' },
+            { label: 'Planes Generados', valor: 0, color: '#1B4F7B' },
+          ].map(stat => (
+            <div key={stat.label} style={{ background: 'white', borderRadius: '14px', border: '1px solid #E8DDD0', padding: '20px 24px' }}>
+              <p style={{ fontSize: '36px', fontWeight: '300', color: stat.color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{stat.valor}</p>
+              <p style={{ fontSize: '11px', color: '#9B7B65', marginTop: '8px', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: '600' }}>{stat.label}</p>
             </div>
           ))}
         </div>
 
-        <div className="mb-10">
-          <h3 className="text-xs font-semibold tracking-widest uppercase mb-5" style={{ color: 'rgba(180,120,60,0.7)' }}>
-            Módulos del Sistema
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {modulos.map((mod) => (
-              <Link key={mod.nombre} href={mod.listo ? mod.href : '#'}
-                className={`group p-6 rounded-xl transition-all duration-300 ${mod.listo ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-2xl">{mod.icono}</span>
-                  {mod.listo
-                    ? <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(26,92,58,0.3)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>Activo</span>
-                    : <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>Próximo</span>
-                  }
+        <div style={{ marginBottom: '32px' }}>
+          <h2 style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914', marginBottom: '16px' }}>Módulos del Sistema</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+            {modulos.map(mod => (
+              <Link key={mod.nombre} href={mod.activo ? mod.href : '#'} style={{
+                background: 'white', borderRadius: '14px', border: '1px solid #E8DDD0',
+                padding: '24px', textDecoration: 'none', display: 'block',
+                opacity: mod.activo ? 1 : 0.5, cursor: mod.activo ? 'pointer' : 'not-allowed'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>{mod.icono}</span>
+                  <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', fontWeight: '600', background: mod.activo ? '#D8F3DC' : '#F2EDE4', color: mod.activo ? '#2D6A4F' : '#9B7B65' }}>
+                    {mod.activo ? 'Activo' : 'Próximo'}
+                  </span>
                 </div>
-                <h4 className="text-white font-medium mb-1" style={{ fontFamily: 'Georgia, serif' }}>{mod.nombre}</h4>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{mod.descripcion}</p>
+                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', fontWeight: '600', color: '#2C1810', marginBottom: '4px' }}>{mod.nombre}</p>
+                <p style={{ fontSize: '13px', color: '#9B7B65' }}>{mod.desc}</p>
               </Link>
             ))}
           </div>
         </div>
 
         {pacientes.length === 0 ? (
-          <div className="text-center py-16 rounded-xl" style={{ border: '1px dashed rgba(255,255,255,0.1)' }}>
-            <p className="text-4xl mb-4">👶</p>
-            <p className="text-white/60 mb-2">No hay pacientes registrados aún</p>
-            <p className="text-white/30 text-sm mb-6">Comienza creando el primer expediente clínico</p>
-            <Link href="/pacientes/nuevo" className="inline-block px-6 py-3 rounded-lg text-sm font-medium"
-              style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: 'white' }}>
-              + Crear Primer Paciente
-            </Link>
+          <div style={{ background: 'white', borderRadius: '16px', border: '2px dashed #E8DDD0', padding: '48px', textAlign: 'center' }}>
+            <p style={{ fontSize: '40px', marginBottom: '16px' }}>👶</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '8px' }}>Sin pacientes registrados</p>
+            <p style={{ color: '#9B7B65', fontSize: '14px', marginBottom: '24px' }}>Comienza creando el primer expediente clínico</p>
+            <Link href="/pacientes/nuevo" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: '10px', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>+ Crear Primer Paciente</Link>
           </div>
         ) : (
           <div>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xs font-semibold tracking-widest uppercase" style={{ color: 'rgba(180,120,60,0.7)' }}>
-                Últimos Pacientes
-              </h3>
-              <Link href="/pacientes" className="text-xs" style={{ color: 'rgba(196,59,59,0.8)' }}>Ver todos →</Link>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914' }}>Últimos Pacientes</h2>
+              <Link href="/pacientes" style={{ fontSize: '13px', color: '#7B1B2A', textDecoration: 'none', fontWeight: '600' }}>Ver todos →</Link>
             </div>
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', overflow: 'hidden' }}>
               {pacientes.slice(0, 5).map((p, i) => (
-                <Link key={p.id} href={`/pacientes/${p.id}`}
-                  className="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors"
-                  style={{ borderBottom: i < Math.min(pacientes.length, 5) - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
-                      style={{ background: 'rgba(139,26,26,0.4)', color: '#e88' }}>
+                <Link key={p.id} href={`/pacientes/${p.id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', textDecoration: 'none', borderBottom: i < Math.min(pacientes.length, 5) - 1 ? '1px solid #F2EDE4' : 'none', background: 'white' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F5E8EB', color: '#7B1B2A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', fontFamily: "'Playfair Display', serif" }}>
                       {p.nombre.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-white text-sm font-medium">{p.nombre}</p>
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.edad} años · {p.tutor}</p>
+                      <p style={{ fontWeight: '600', color: '#2C1810', fontSize: '15px', marginBottom: '2px' }}>{p.nombre}</p>
+                      <p style={{ fontSize: '12px', color: '#9B7B65' }}>{p.edad} años · Tutor: {p.tutor}</p>
                     </div>
                   </div>
-                  <span className="text-xs capitalize px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
-                    {p.sexo}
-                  </span>
+                  <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '20px', background: '#F2EDE4', color: '#6B4F3A', textTransform: 'capitalize', fontWeight: '500' }}>{p.sexo}</span>
                 </Link>
               ))}
             </div>
