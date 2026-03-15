@@ -1,28 +1,31 @@
 "use client";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const CORREOS_AUTORIZADOS = ["Ln.karynalaras@gmail.com", "deltakilo.vela@gmail.com"];
 
 export default function LoginButton() {
   const router = useRouter();
 
-  const handleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const email = result.user.email;
-
-      if (email && CORREOS_AUTORIZADOS.includes(email)) {
-        router.push("/dashboard");
-      } else {
-        await auth.signOut();
-        alert("Acceso no autorizado. Esta plataforma es de uso exclusivo de la Lic. Karina Lara.");
+  useEffect(() => {
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        const email = result.user.email;
+        if (email && CORREOS_AUTORIZADOS.includes(email)) {
+          router.push("/dashboard");
+        } else {
+          auth.signOut();
+          alert("Acceso no autorizado. Esta plataforma es de uso exclusivo de la Lic. Karina Lara.");
+        }
       }
-    } catch (error) {
-      console.error("Error al iniciar sesión:", error);
-    }
+    }).catch(console.error);
+  }, [router]);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithRedirect(auth, provider);
   };
 
   return (
