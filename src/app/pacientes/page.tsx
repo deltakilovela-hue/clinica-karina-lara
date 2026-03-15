@@ -17,7 +17,7 @@ export default function PacientesPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || user.email !== CORREO_AUTORIZADO) {
+      if (!user || !ADMINS.includes(user.email ?? '')) {
         router.push('/')
         return
       }
