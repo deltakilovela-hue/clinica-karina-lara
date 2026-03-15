@@ -17,11 +17,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (user && user.email && CORREOS_AUTORIZADOS.includes(user.email)) {
+      if (!user || user.email !== CORREO_AUTORIZADO) {
         router.push('/')
         return
       }
-      setUsuario(user.displayName || user.email || '')
+      setUsuario(user?.displayName || user?.email || '')
       try {
         const lista = await obtenerPacientes()
         setPacientes(lista)
