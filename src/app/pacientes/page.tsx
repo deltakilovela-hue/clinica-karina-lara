@@ -7,7 +7,7 @@ import { auth } from '@/lib/firebase'
 import { obtenerPacientes, Paciente } from '@/lib/pacientes'
 import Link from 'next/link'
 
-const CORREO_AUTORIZADO = 'Ln.karynalaras@gmail.com'
+const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
 export default function PacientesPage() {
   const router = useRouter()
