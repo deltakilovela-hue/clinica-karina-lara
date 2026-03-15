@@ -18,11 +18,10 @@ export default function PortalPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) { router.push('/'); return }
-    if (!user || !ADMINS.includes(user.email ?? '')) {
-  router.replace('/')
-  return
-}
+      if (!user) { router.replace('/'); return }
+      if (ADMINS.includes(user.email ?? '')) {
+        router.replace('/dashboard'); return
+      }
 
       setUsuarioEmail(user.email || '')
       try {
