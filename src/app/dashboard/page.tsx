@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, GoogleAuthProvider } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
-const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com']
+const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
 export default function Home() {
   const router = useRouter()
@@ -15,24 +15,20 @@ export default function Home() {
   const [cargando, setCargando] = useState(false)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) { router.replace('/'); return }
-      if (!ADMINS.includes(user.email ?? '')) { router.replace('/'); return }
-      
-      setUsuario(user?.displayName || user?.email || '')
-      try {
-        const lista = await obtenerPacientes()
-        setPacientes(lista)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setCargando(false)
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) return
+      if (user.email && ADMINS.includes(user.email)) {
+        router.replace('/dashboard')
+      } else {
+        router.replace('/portal')
       }
     })
     return () => unsub()
   }, [router])
+
   const loginGoogle = async () => {
     try {
+      setError('')
       setCargando(true)
       const provider = new GoogleAuthProvider()
       provider.setCustomParameters({ prompt: 'select_account' })
@@ -48,8 +44,8 @@ export default function Home() {
   const loginEmail = async () => {
     if (!email || !password) { setError('Ingresa tu correo y contraseña'); return }
     try {
-      setCargando(true)
       setError('')
+      setCargando(true)
       await signInWithEmailAndPassword(auth, email, password)
     } catch {
       setError('Correo o contraseña incorrectos')
@@ -75,8 +71,6 @@ export default function Home() {
 
         <div className="rounded-2xl p-8 space-y-4"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-
-          {/* Email/Password */}
           <div>
             <label className="block text-xs tracking-widest uppercase mb-2"
               style={{ color: 'rgba(180,120,60,0.8)' }}>Correo</label>
@@ -115,7 +109,6 @@ export default function Home() {
             <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
           </div>
 
-          {/* Google para admins */}
           <button onClick={loginGoogle} disabled={cargando}
             className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }}>
