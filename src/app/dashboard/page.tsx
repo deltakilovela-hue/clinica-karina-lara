@@ -43,7 +43,7 @@ export default function DashboardPage() {
     { nombre: 'Gestión de Pacientes', desc: 'Crear y administrar expedientes', href: '/pacientes', icono: '👥', activo: true },
     { nombre: 'Historia Clínica', desc: 'Antecedentes y diagnósticos', href: '#', icono: '📋', activo: true },
     { nombre: 'Antropometría', desc: 'Peso, talla y percentiles OMS', href: '#', icono: '📏', activo: true },
-    { nombre: 'Plan Nutricional IA', desc: 'Generado con Claude API', href: '#', icono: '🧠', activo: false },
+    { nombre: 'Plan Nutricional IA', desc: 'Generado con Claude API', href: '#', icono: '🧠', activo: true },
     { nombre: 'Seguimiento Digestivo', desc: 'Evolución y síntomas GI', href: '#', icono: '📊', activo: false },
     { nombre: 'Expediente Completo', desc: 'Historial integral', href: '#', icono: '🗂️', activo: false },
   ]

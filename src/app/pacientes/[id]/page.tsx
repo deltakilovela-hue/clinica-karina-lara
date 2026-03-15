@@ -54,7 +54,7 @@ export default function DetallePacientePage() {
     { nombre: 'Historia Clínica', icono: '📋', href: `/pacientes/${id}/historia`, listo: true },
     { nombre: 'Antropometría', icono: '📏', href: `/pacientes/${id}/antropometria`, listo: true },
     { nombre: 'Diagnóstico', icono: '🩺', href: `/pacientes/${id}/diagnostico`, listo: false },
-    { nombre: 'Plan Nutricional IA', icono: '🧠', href: `/pacientes/${id}/plan`, listo: false },
+    { nombre: 'Plan Nutricional IA', icono: '🧠', href: `/pacientes/${id}/plan`, listo: true },
     { nombre: 'Seguimiento', icono: '📊', href: `/pacientes/${id}/seguimiento`, listo: false },
     { nombre: 'Expediente Completo', icono: '🗂️', href: `/pacientes/${id}/expediente`, listo: false },
   ]
