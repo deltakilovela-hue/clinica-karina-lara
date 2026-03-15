@@ -233,4 +233,103 @@ export default function AntropometriaPage() {
                 border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A',
                 cursor: 'pointer', fontFamily: "'Lato', sans-serif"
               }}>Cancelar</button>
-              <button onClick={
+              <button onClick={guardar} disabled={guardando || !preview} style={{
+                padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
+                background: 'linear-gradient(135deg, #2D6A4F, #40916C)', color: 'white',
+                border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+                opacity: guardando || !preview ? 0.6 : 1
+              }}>{guardando ? 'Guardando...' : '✓ Guardar Medición'}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Tabla de mediciones */}
+        {mediciones.length === 0 ? (
+          <div style={{ background: 'white', borderRadius: '16px', border: '2px dashed #E8DDD0', padding: '48px', textAlign: 'center' }}>
+            <p style={{ fontSize: '36px', marginBottom: '12px' }}>📏</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', marginBottom: '8px' }}>Sin mediciones registradas</p>
+            <p style={{ color: '#9B7B65', fontSize: '14px', marginBottom: '20px' }}>Registra la primera medición antropométrica</p>
+            <button onClick={() => setMostrarForm(true)} style={{
+              padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
+              background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white',
+              border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif"
+            }}>+ Nueva Medición</button>
+          </div>
+        ) : (
+          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #F2EDE4' }}>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810' }}>
+                Historial de Mediciones
+              </h2>
+              <p style={{ fontSize: '13px', color: '#9B7B65', marginTop: '2px' }}>
+                {mediciones.length} medición{mediciones.length !== 1 ? 'es' : ''} registrada{mediciones.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            {/* Header tabla */}
+            <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 80px 70px 140px 140px 1fr', gap: '12px', padding: '12px 24px', background: '#FAF7F2', borderBottom: '1px solid #E8DDD0' }}>
+              {['Fecha', 'Peso', 'Talla', 'IMC', 'Percentil Peso', 'Percentil Talla', 'Notas'].map(h => (
+                <p key={h} style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#9B7B65' }}>{h}</p>
+              ))}
+            </div>
+
+            {mediciones.map((m, i) => (
+              <div key={m.id} style={{
+                display: 'grid', gridTemplateColumns: '120px 80px 80px 70px 140px 140px 1fr',
+                gap: '12px', padding: '16px 24px', alignItems: 'center',
+                borderBottom: i < mediciones.length - 1 ? '1px solid #F2EDE4' : 'none'
+              }}>
+                <p style={{ fontSize: '14px', color: '#2C1810', fontWeight: '500' }}>
+                  {new Date(m.fecha + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+                <p style={{ fontSize: '14px', color: '#2C1810' }}>{m.peso} kg</p>
+                <p style={{ fontSize: '14px', color: '#2C1810' }}>{m.talla} cm</p>
+                <p style={{ fontSize: '14px', color: '#2C1810' }}>{m.imc}</p>
+                <div>
+                  <span style={{
+                    fontSize: '13px', fontWeight: '700', padding: '3px 10px', borderRadius: '20px',
+                    background: m.interpretacionPeso === 'Normal' ? '#D8F3DC' : '#FFF3CD',
+                    color: m.interpretacionPeso === 'Normal' ? '#2D6A4F' : '#856404'
+                  }}>P{m.percentilPeso} · {m.interpretacionPeso}</span>
+                </div>
+                <div>
+                  <span style={{
+                    fontSize: '13px', fontWeight: '700', padding: '3px 10px', borderRadius: '20px',
+                    background: m.interpretacionTalla === 'Normal' ? '#D8F3DC' : '#FFF3CD',
+                    color: m.interpretacionTalla === 'Normal' ? '#2D6A4F' : '#856404'
+                  }}>P{m.percentilTalla} · {m.interpretacionTalla}</span>
+                </div>
+                <p style={{ fontSize: '13px', color: '#9B7B65', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.notas || '—'}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Última medición destacada */}
+        {mediciones.length > 0 && (
+          <div style={{ marginTop: '24px', background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', padding: '24px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914', marginBottom: '16px' }}>
+              Última Medición — {new Date(mediciones[0].fecha + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              {[
+                { label: 'Peso', valor: `${mediciones[0].peso} kg` },
+                { label: 'Talla', valor: `${mediciones[0].talla} cm` },
+                { label: 'IMC', valor: `${mediciones[0].imc} kg/m²` },
+                { label: 'P. Peso/Edad', valor: `P${mediciones[0].percentilPeso}`, sub: mediciones[0].interpretacionPeso, color: mediciones[0].interpretacionPeso === 'Normal' ? '#2D6A4F' : '#C4831A' },
+              ].map(item => (
+                <div key={item.label} style={{ background: '#FAF7F2', borderRadius: '12px', padding: '16px', border: '1px solid #E8DDD0' }}>
+                  <p style={{ fontSize: '11px', color: '#9B7B65', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>{item.label}</p>
+                  <p style={{ fontSize: '20px', fontWeight: '700', color: 'color' in item ? item.color : '#2C1810', fontFamily: "'Playfair Display', serif" }}>{item.valor}</p>
+                  {'sub' in item && <p style={{ fontSize: '12px', color: 'color' in item ? item.color as string : '#9B7B65', marginTop: '2px', fontWeight: '600' }}>{item.sub}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
