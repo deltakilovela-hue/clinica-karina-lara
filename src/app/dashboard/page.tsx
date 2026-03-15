@@ -1,189 +1,129 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, GoogleAuthProvider } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
-import { obtenerPacientes, Paciente } from '@/lib/pacientes'
-import Link from 'next/link'
 
-const CORREOS_AUTORIZADOS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com']
+const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com']
 
-export default function DashboardPage() {
+export default function Home() {
   const router = useRouter()
-  const [pacientes, setPacientes] = useState<Paciente[]>([])
-  const [cargando, setCargando] = useState(true)
-  const [usuario, setUsuario] = useState<string>('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [cargando, setCargando] = useState(false)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || !CORREOS_AUTORIZADOS.includes(user.email ?? '')) {
-        router.push('/')
-        return
-      }
-      setUsuario(user?.displayName || user?.email || '')
-      try {
-        const lista = await obtenerPacientes()
-        setPacientes(lista)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setCargando(false)
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) return
+      if (user.email && ADMINS.includes(user.email)) {
+        router.push('/dashboard')
+      } else {
+        router.push('/portal')
       }
     })
     return () => unsub()
   }, [router])
 
-  const cerrarSesion = async () => {
-    await signOut(auth)
-    router.push('/')
+  const loginGoogle = async () => {
+    try {
+      setCargando(true)
+      const provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account' })
+      await signInWithPopup(auth, provider)
+    } catch (e: unknown) {
+      const err = e as { code?: string }
+      if (err.code !== 'auth/popup-closed-by-user') setError('Error al iniciar sesión con Google')
+    } finally {
+      setCargando(false)
+    }
   }
 
-  const hoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-
-  if (cargando) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a0a05' }}>
-        <div className="text-center">
-          <div className="w-12 h-12 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-amber-200/60 font-light tracking-widest text-sm uppercase">Cargando...</p>
-        </div>
-      </div>
-    )
+  const loginEmail = async () => {
+    if (!email || !password) { setError('Ingresa tu correo y contraseña'); return }
+    try {
+      setCargando(true)
+      setError('')
+      await signInWithEmailAndPassword(auth, email, password)
+    } catch {
+      setError('Correo o contraseña incorrectos')
+    } finally {
+      setCargando(false)
+    }
   }
-
-  const modulos = [
-    { nombre: 'Gestión de Pacientes', descripcion: 'Crear y administrar expedientes', href: '/pacientes', icono: '👥', listo: true },
-    { nombre: 'Historia Clínica', descripcion: 'Antecedentes y diagnósticos', href: '#', icono: '📋', listo: false },
-    { nombre: 'Antropometría', descripcion: 'Peso, talla y percentiles', href: '#', icono: '📏', listo: false },
-    { nombre: 'Plan Nutricional IA', descripcion: 'Generado con Claude API', href: '#', icono: '🧠', listo: false },
-    { nombre: 'Seguimiento Digestivo', descripcion: 'Evolución y síntomas GI', href: '#', icono: '📊', listo: false },
-    { nombre: 'Expediente Completo', descripcion: 'Historial integral del paciente', href: '#', icono: '🗂️', listo: false },
-  ]
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #1a0a05 0%, #2d0f0a 50%, #1a0505 100%)' }}>
-      <header style={{ borderBottom: '1px solid rgba(180, 120, 60, 0.2)', background: 'rgba(0,0,0,0.3)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
-              style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: '#fff' }}>
-              KL
-            </div>
-            <div>
-              <h1 className="text-white font-semibold tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>
-                Clínica Karina Lara
-              </h1>
-              <p className="text-xs" style={{ color: 'rgba(180,120,60,0.8)' }}>Nutrición Clínica Especializada</p>
-            </div>
+    <main className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{ background: 'linear-gradient(135deg, #1a0a05 0%, #2d0f0a 50%, #1a0505 100%)' }}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6"
+            style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: '#fff' }}>
+            KL
           </div>
-          <div className="flex items-center gap-6">
-            <p className="text-sm hidden md:block" style={{ color: 'rgba(255,255,255,0.4)' }}>{hoy}</p>
-            <p className="text-sm text-white/70 hidden sm:block">{usuario}</p>
-            <button onClick={cerrarSesion}
-              className="text-xs px-4 py-2 rounded transition-all"
-              style={{ border: '1px solid rgba(180,120,60,0.3)', color: 'rgba(180,120,60,0.8)' }}>
-              Salir
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="mb-10">
-          <h2 className="text-3xl font-light text-white mb-1" style={{ fontFamily: 'Georgia, serif' }}>
-            Buenos días, <span style={{ color: '#C43B3B' }}>Karina</span>
-          </h2>
-          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Sistema de gestión clínica nutricional pediátrica</p>
+          <h1 className="text-3xl font-light text-white mb-2" style={{ fontFamily: 'Georgia, serif' }}>
+            Clínica Karina Lara
+          </h1>
+          <p className="text-sm" style={{ color: 'rgba(180,120,60,0.8)' }}>Nutrición Clínica Especializada</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-          {[
-            { label: 'Pacientes Activos', valor: pacientes.length },
-            { label: 'Consultas Hoy', valor: 0 },
-            { label: 'Nuevos este Mes', valor: pacientes.filter(p => {
-              if (!p.fechaCreacion) return false
-              const fecha = p.fechaCreacion.toDate()
-              const ahora = new Date()
-              return fecha.getMonth() === ahora.getMonth() && fecha.getFullYear() === ahora.getFullYear()
-            }).length },
-            { label: 'Planes Generados', valor: 0 },
-          ].map((stat) => (
-            <div key={stat.label} className="p-5 rounded-xl"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-3xl font-light text-white mb-1">{stat.valor}</p>
-              <p className="text-xs tracking-wider uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>{stat.label}</p>
-            </div>
-          ))}
-        </div>
+        <div className="rounded-2xl p-8 space-y-4"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
 
-        <div className="mb-10">
-          <h3 className="text-xs font-semibold tracking-widest uppercase mb-5"
-            style={{ color: 'rgba(180,120,60,0.7)' }}>Módulos del Sistema</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {modulos.map((mod) => (
-              <Link key={mod.nombre} href={mod.listo ? mod.href : '#'}
-                className={`group p-6 rounded-xl transition-all duration-300 ${mod.listo ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-2xl">{mod.icono}</span>
-                  {mod.listo
-                    ? <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(26,92,58,0.3)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>Activo</span>
-                    : <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>Próximo</span>
-                  }
-                </div>
-                <h4 className="text-white font-medium mb-1" style={{ fontFamily: 'Georgia, serif' }}>{mod.nombre}</h4>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{mod.descripcion}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {pacientes.length > 0 && (
+          {/* Email/Password */}
           <div>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xs font-semibold tracking-widest uppercase"
-                style={{ color: 'rgba(180,120,60,0.7)' }}>Últimos Pacientes Registrados</h3>
-              <Link href="/pacientes" className="text-xs" style={{ color: 'rgba(196,59,59,0.8)' }}>Ver todos →</Link>
-            </div>
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-              {pacientes.slice(0, 5).map((p, i) => (
-                <Link key={p.id} href={`/pacientes/${p.id}`}
-                  className="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors"
-                  style={{ borderBottom: i < Math.min(pacientes.length, 5) - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
-                      style={{ background: 'rgba(139,26,26,0.4)', color: '#e88' }}>
-                      {p.nombre.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-white text-sm font-medium">{p.nombre}</p>
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.edad} años · Tutor: {p.tutor}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs capitalize px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
-                    {p.sexo}
-                  </span>
-                </Link>
-              ))}
-            </div>
+            <label className="block text-xs tracking-widest uppercase mb-2"
+              style={{ color: 'rgba(180,120,60,0.8)' }}>Correo</label>
+            <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError('') }}
+              placeholder="correo@ejemplo.com"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }} />
           </div>
-        )}
 
-        {pacientes.length === 0 && (
-          <div className="text-center py-16 rounded-xl" style={{ border: '1px dashed rgba(255,255,255,0.1)' }}>
-            <p className="text-4xl mb-4">👶</p>
-            <p className="text-white/60 mb-2">No hay pacientes registrados aún</p>
-            <p className="text-white/30 text-sm mb-6">Comienza creando el primer expediente clínico</p>
-            <Link href="/pacientes/nuevo"
-              className="inline-block px-6 py-3 rounded-lg text-sm font-medium"
-              style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: 'white' }}>
-              + Crear Primer Paciente
-            </Link>
+          <div>
+            <label className="block text-xs tracking-widest uppercase mb-2"
+              style={{ color: 'rgba(180,120,60,0.8)' }}>Contraseña</label>
+            <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError('') }}
+              placeholder="••••••••"
+              onKeyDown={e => e.key === 'Enter' && loginEmail()}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }} />
           </div>
-        )}
-      </main>
-    </div>
+
+          {error && (
+            <p className="text-xs px-3 py-2 rounded-lg"
+              style={{ background: 'rgba(220,38,38,0.15)', color: '#fca5a5', border: '1px solid rgba(220,38,38,0.3)' }}>
+              {error}
+            </p>
+          )}
+
+          <button onClick={loginEmail} disabled={cargando}
+            className="w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: 'white' }}>
+            {cargando ? 'Entrando...' : 'Iniciar Sesión'}
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>o</span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
+          </div>
+
+          {/* Google para admins */}
+          <button onClick={loginGoogle} disabled={cargando}
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }}>
+            <svg width="16" height="16" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+            Entrar con Google (Administrador)
+          </button>
+        </div>
+      </div>
+    </main>
   )
 }

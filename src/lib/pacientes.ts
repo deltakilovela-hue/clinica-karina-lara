@@ -23,6 +23,8 @@ export interface Paciente {
   correo: string
   direccion: string
   motivoConsulta: string
+  correoAcceso?: string
+  passwordAcceso?: string
   fechaCreacion?: Timestamp
 }
 
@@ -65,4 +67,19 @@ export function calcularEdad(fechaNacimiento: string): number {
   const mes = hoy.getMonth() - nac.getMonth()
   if (mes < 0 || (mes === 0 && hoy.getDate() < nac.getDate())) edad--
   return edad
+}
+
+export function generarCredenciales(nombrePaciente: string): { correo: string, password: string } {
+  const base = nombrePaciente
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '.')
+    .replace(/[^a-z.]/g, '')
+    .substring(0, 20)
+  const numero = Math.floor(1000 + Math.random() * 9000)
+  const correo = `${base}${numero}@clinicakarina.app`
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  const password = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  return { correo, password }
 }
