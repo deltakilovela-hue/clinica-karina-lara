@@ -12,6 +12,7 @@ const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@c
 type Step = 1 | 2 | 3 | 4
 
 export default function NuevoPacientePage() {
+  const [inicializando, setInicializando] = useState(true)
   const router = useRouter()
   const [step, setStep] = useState<Step>(1)
   const [guardando, setGuardando] = useState(false)
@@ -24,12 +25,22 @@ export default function NuevoPacientePage() {
     tutor: '', telefono: '', correo: '', direccion: '', motivoConsulta: '',
   })
 
-  useEffect(() => {
+
+useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user || !user.email || !ADMINS.includes(user.email)) router.push('/')
+      setInicializando(false)
+      if (!user || !user.email || !ADMINS.includes(user.email)) {
+        router.replace('/')
+      }
     })
     return () => unsub()
   }, [router])
+
+if (inicializando) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a0a05' }}>
+      <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   const set = (campo: string, valor: string) => { setForm(prev => ({ ...prev, [campo]: valor })); setError('') }
 

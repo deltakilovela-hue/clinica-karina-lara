@@ -7,7 +7,7 @@ import { auth } from '@/lib/firebase'
 import { obtenerPaciente, eliminarPaciente, Paciente } from '@/lib/pacientes'
 import Link from 'next/link'
 
-const CORREO_AUTORIZADO = 'Ln.karynalaras@gmail.com'
+const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
 export default function DetallePacientePage() {
   const router = useRouter()
@@ -19,7 +19,7 @@ export default function DetallePacientePage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || user.email !== CORREO_AUTORIZADO) { router.push('/'); return }
+     if (!user || !ADMINS.includes(user.email ?? '')) { router.push('/'); return }
       try {
         const p = await obtenerPaciente(id)
         setPaciente(p)
