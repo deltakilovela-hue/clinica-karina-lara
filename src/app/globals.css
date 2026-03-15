@@ -1,3 +1,40 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #FAF7F2;
+  --bg-secondary: #F2EDE4;
+  --bg-card: #FFFFFF;
+  --border: #E8DDD0;
+  --border-strong: #C9B8A8;
+  --vino: #7B1B2A;
+  --vino-dark: #5C1420;
+  --vino-light: #A63244;
+  --vino-pale: #F5E8EB;
+  --text-primary: #2C1810;
+  --text-secondary: #6B4F3A;
+  --text-muted: #9B7B65;
+  --gold: #8B6914;
+  --gold-light: #C4A35A;
+  --success: #2D6A4F;
+  --success-bg: #D8F3DC;
+  --error: #9B2335;
+  --error-bg: #FDECEA;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Georgia', serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+}
+
+/* Scrollbar elegante */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }

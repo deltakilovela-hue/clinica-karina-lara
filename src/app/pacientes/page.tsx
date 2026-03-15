@@ -17,18 +17,12 @@ export default function PacientesPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || !ADMINS.includes(user.email ?? '')) {
-        router.push('/')
-        return
-      }
+      if (!user || !ADMINS.includes(user.email ?? '')) { router.replace('/'); return }
       try {
         const lista = await obtenerPacientes()
         setPacientes(lista)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setCargando(false)
-      }
+      } catch (e) { console.error(e) }
+      finally { setCargando(false) }
     })
     return () => unsub()
   }, [router])
@@ -39,95 +33,109 @@ export default function PacientesPage() {
     p.motivoConsulta.toLowerCase().includes(filtro.toLowerCase())
   )
 
-  if (cargando) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a0a05' }}>
-        <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (cargando) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAF7F2' }}>
+      <div style={{ width: '40px', height: '40px', border: '3px solid #E8DDD0', borderTopColor: '#7B1B2A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #1a0a05 0%, #2d0f0a 50%, #1a0505 100%)' }}>
-      <header style={{ borderBottom: '1px solid rgba(180,120,60,0.2)', background: 'rgba(0,0,0,0.3)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>← Dashboard</Link>
-            <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
-            <span className="text-white text-sm">Pacientes</span>
+    <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+
+      {/* Header */}
+      <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+            <Link href="/dashboard" style={{ color: '#9B7B65', textDecoration: 'none' }}>← Dashboard</Link>
+            <span style={{ color: '#C9B8A8' }}>/</span>
+            <span style={{ color: '#2C1810', fontWeight: '600' }}>Pacientes</span>
           </div>
-          <Link href="/pacientes/nuevo"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: 'white' }}>
-            + Nuevo Paciente
-          </Link>
+          <Link href="/pacientes/nuevo" style={{
+            padding: '9px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
+            background: 'linear-gradient(135deg, #7B1B2A, #A63244)',
+            color: 'white', textDecoration: 'none',
+            boxShadow: '0 2px 8px rgba(123,27,42,0.25)'
+          }}>+ Nuevo Paciente</Link>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-light text-white mb-1" style={{ fontFamily: 'Georgia, serif' }}>
-            Gestión de <span style={{ color: '#C43B3B' }}>Pacientes</span>
+      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px 24px' }}>
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '30px', fontWeight: '600', color: '#2C1810', marginBottom: '4px' }}>
+            Gestión de <span style={{ color: '#7B1B2A' }}>Pacientes</span>
           </h1>
-          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <p style={{ color: '#9B7B65', fontSize: '14px' }}>
             {pacientes.length} paciente{pacientes.length !== 1 ? 's' : ''} registrado{pacientes.length !== 1 ? 's' : ''}
           </p>
         </div>
 
-        <div className="mb-6">
+        {/* Buscador */}
+        <div style={{ marginBottom: '24px' }}>
           <input
             type="text"
-            placeholder="Buscar por nombre, tutor o motivo de consulta..."
+            placeholder="🔍  Buscar por nombre, tutor o motivo de consulta..."
             value={filtro}
             onChange={e => setFiltro(e.target.value)}
-            className="w-full px-5 py-3 rounded-xl text-sm outline-none"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+            style={{
+              width: '100%', padding: '12px 18px', borderRadius: '12px', fontSize: '14px',
+              border: '1.5px solid #E8DDD0', background: 'white', color: '#2C1810',
+              outline: 'none', fontFamily: "'Lato', sans-serif"
+            }}
           />
         </div>
 
+        {/* Lista */}
         {filtrados.length === 0 ? (
-          <div className="text-center py-20 rounded-xl" style={{ border: '1px dashed rgba(255,255,255,0.1)' }}>
-            <p className="text-4xl mb-4">🔍</p>
-            <p className="text-white/50 mb-1">No se encontraron pacientes</p>
+          <div style={{
+            background: 'white', borderRadius: '16px', border: '2px dashed #E8DDD0',
+            padding: '60px', textAlign: 'center'
+          }}>
+            <p style={{ fontSize: '40px', marginBottom: '16px' }}>🔍</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', marginBottom: '8px' }}>
+              No se encontraron pacientes
+            </p>
             {!filtro && (
-              <Link href="/pacientes/nuevo"
-                className="inline-block mt-4 px-6 py-3 rounded-lg text-sm font-medium"
-                style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: 'white' }}>
-                + Crear Primer Paciente
-              </Link>
+              <Link href="/pacientes/nuevo" style={{
+                display: 'inline-block', marginTop: '16px', padding: '11px 24px',
+                borderRadius: '10px', background: 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                color: 'white', textDecoration: 'none', fontSize: '14px', fontWeight: '600'
+              }}>+ Crear Primer Paciente</Link>
             )}
           </div>
         ) : (
-          <div className="grid gap-3">
-            {filtrados.map((p) => (
-              <Link key={p.id} href={`/pacientes/${p.id}`}
-                className="group flex items-center justify-between p-5 rounded-xl transition-all hover:bg-white/5"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-semibold"
-                    style={{ background: 'rgba(139,26,26,0.4)', color: '#e88' }}>
-                    {p.nombre.charAt(0).toUpperCase()}
-                  </div>
+          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', overflow: 'hidden' }}>
+            {filtrados.map((p, i) => (
+              <Link key={p.id} href={`/pacientes/${p.id}`} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '18px 24px', textDecoration: 'none',
+                borderBottom: i < filtrados.length - 1 ? '1px solid #F2EDE4' : 'none',
+                background: 'white', transition: 'background 0.15s'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '50%',
+                    background: '#F5E8EB', color: '#7B1B2A',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '18px', fontWeight: '700', fontFamily: "'Playfair Display', serif",
+                    flexShrink: 0
+                  }}>{p.nombre.charAt(0).toUpperCase()}</div>
                   <div>
-                    <p className="text-white font-medium" style={{ fontFamily: 'Georgia, serif' }}>{p.nombre}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <p style={{ fontWeight: '600', color: '#2C1810', fontSize: '15px', marginBottom: '3px' }}>{p.nombre}</p>
+                    <p style={{ fontSize: '13px', color: '#9B7B65', marginBottom: '2px' }}>
                       {p.edad} años · {p.sexo} · Tutor: {p.tutor}
                     </p>
-                    <p className="text-xs mt-0.5 truncate max-w-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                      {p.motivoConsulta}
-                    </p>
+                    <p style={{ fontSize: '12px', color: '#C9B8A8' }}>{p.motivoConsulta.substring(0, 60)}{p.motivoConsulta.length > 60 ? '...' : ''}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>{p.telefono}</p>
-                    {p.fechaCreacion && (
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
-                        {p.fechaCreacion.toDate().toLocaleDateString('es-MX')}
-                      </p>
-                    )}
-                  </div>
-                  <span style={{ color: 'rgba(255,255,255,0.2)' }}>→</span>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <p style={{ fontSize: '13px', color: '#6B4F3A', marginBottom: '4px' }}>{p.telefono}</p>
+                  {p.fechaCreacion && (
+                    <p style={{ fontSize: '12px', color: '#C9B8A8' }}>
+                      {p.fechaCreacion.toDate().toLocaleDateString('es-MX')}
+                    </p>
+                  )}
                 </div>
               </Link>
             ))}

@@ -16,10 +16,12 @@ export default function DetallePacientePage() {
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [cargando, setCargando] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [inicializando, setInicializando] = useState(true)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-     if (!user || !ADMINS.includes(user.email ?? '')) { router.push('/'); return }
+      setInicializando(false)
+      if (!user || !ADMINS.includes(user.email ?? '')) { router.replace('/'); return }
       try {
         const p = await obtenerPaciente(id)
         setPaciente(p)
@@ -34,16 +36,17 @@ export default function DetallePacientePage() {
     catch (e) { console.error(e) }
   }
 
-  if (cargando) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a0a05' }}>
-      <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+  if (inicializando || cargando) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAF7F2' }}>
+      <div style={{ width: '40px', height: '40px', border: '3px solid #E8DDD0', borderTopColor: '#7B1B2A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 
   if (!paciente) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#1a0a05' }}>
-      <p className="text-white/60">Paciente no encontrado</p>
-      <Link href="/pacientes" className="text-sm" style={{ color: '#C43B3B' }}>← Volver</Link>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: '#FAF7F2' }}>
+      <p style={{ color: '#6B4F3A', fontFamily: "'Lato', sans-serif" }}>Paciente no encontrado</p>
+      <Link href="/pacientes" style={{ color: '#7B1B2A', fontSize: '14px', fontFamily: "'Lato', sans-serif" }}>← Volver</Link>
     </div>
   )
 
@@ -57,64 +60,95 @@ export default function DetallePacientePage() {
   ]
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #1a0a05 0%, #2d0f0a 50%, #1a0505 100%)' }}>
-      <header style={{ borderBottom: '1px solid rgba(180,120,60,0.2)', background: 'rgba(0,0,0,0.3)' }}>
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-sm">
-            <Link href="/dashboard" style={{ color: 'rgba(255,255,255,0.4)' }}>Dashboard</Link>
-            <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
-            <Link href="/pacientes" style={{ color: 'rgba(255,255,255,0.4)' }}>Pacientes</Link>
-            <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
-            <span className="text-white">{paciente.nombre}</span>
+    <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+
+      <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
+        <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+            <Link href="/dashboard" style={{ color: '#9B7B65', textDecoration: 'none' }}>Dashboard</Link>
+            <span style={{ color: '#C9B8A8' }}>/</span>
+            <Link href="/pacientes" style={{ color: '#9B7B65', textDecoration: 'none' }}>Pacientes</Link>
+            <span style={{ color: '#C9B8A8' }}>/</span>
+            <span style={{ color: '#2C1810', fontWeight: '600' }}>{paciente.nombre}</span>
           </div>
-          <button onClick={() => setConfirmDelete(true)} className="text-xs px-4 py-2 rounded-lg"
-            style={{ border: '1px solid rgba(220,38,38,0.3)', color: 'rgba(220,38,38,0.7)' }}>
-            Eliminar
-          </button>
+          <button onClick={() => setConfirmDelete(true)} style={{
+            padding: '7px 16px', borderRadius: '8px', fontSize: '13px',
+            border: '1.5px solid #F5C2C7', background: 'white',
+            color: '#9B2335', cursor: 'pointer', fontFamily: "'Lato', sans-serif"
+          }}>Eliminar</button>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        <div className="flex items-start gap-6 mb-8 p-8 rounded-2xl"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #8B1A1A, #C43B3B)', color: 'white' }}>
-            {paciente.nombre.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-light text-white mb-1" style={{ fontFamily: 'Georgia, serif' }}>
-              {paciente.nombre}
-            </h1>
-            <p className="text-sm mb-4" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              {paciente.edad} años · {paciente.sexo} · {paciente.fechaNacimiento && new Date(paciente.fechaNacimiento + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {[['Tutor', paciente.tutor], ['Teléfono', paciente.telefono], ['Correo', paciente.correo || 'No registrado'], ['Dirección', paciente.direccion || 'No registrada']].map(([l, v]) => (
-                <div key={l}>
-                  <p className="text-xs tracking-wider uppercase mb-0.5" style={{ color: 'rgba(180,120,60,0.6)' }}>{l}</p>
-                  <p className="text-sm text-white/70 truncate">{v}</p>
-                </div>
-              ))}
+      <main style={{ maxWidth: '960px', margin: '0 auto', padding: '40px 24px' }}>
+
+        {/* Perfil */}
+        <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 16px rgba(44,24,16,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', marginBottom: '24px' }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%', flexShrink: 0,
+              background: 'linear-gradient(135deg, #7B1B2A, #A63244)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'white', fontSize: '26px', fontWeight: '700',
+              fontFamily: "'Playfair Display', serif"
+            }}>{paciente.nombre.charAt(0).toUpperCase()}</div>
+            <div>
+              <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '26px', fontWeight: '600', color: '#2C1810', marginBottom: '4px' }}>
+                {paciente.nombre}
+              </h1>
+              <p style={{ color: '#9B7B65', fontSize: '14px', marginBottom: '16px' }}>
+                {paciente.edad} años · {paciente.sexo} · {paciente.fechaNacimiento && new Date(paciente.fechaNacimiento + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                {[['Tutor', paciente.tutor], ['Teléfono', paciente.telefono], ['Correo', paciente.correo || 'No registrado']].map(([l, v]) => (
+                  <div key={l}>
+                    <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#8B6914', marginBottom: '4px' }}>{l}</p>
+                    <p style={{ fontSize: '14px', color: '#2C1810' }}>{v}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+
+          <div style={{ background: '#FAF7F2', borderRadius: '12px', padding: '18px', border: '1px solid #E8DDD0' }}>
+            <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#8B6914', marginBottom: '8px' }}>Motivo de Consulta</p>
+            <p style={{ fontSize: '14px', color: '#2C1810', lineHeight: '1.6' }}>{paciente.motivoConsulta}</p>
+          </div>
+
+          {paciente.correoAcceso && (
+            <div style={{ marginTop: '16px', background: '#F0FAF4', borderRadius: '12px', padding: '18px', border: '1px solid #95D5A8' }}>
+              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#2D6A4F', marginBottom: '10px' }}>Acceso Portal Padres</p>
+              <div style={{ display: 'flex', gap: '24px' }}>
+                <div>
+                  <p style={{ fontSize: '12px', color: '#6B4F3A', marginBottom: '4px' }}>Usuario</p>
+                  <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#2C1810', userSelect: 'all' }}>{paciente.correoAcceso}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '12px', color: '#6B4F3A', marginBottom: '4px' }}>Contraseña</p>
+                  <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#2C1810', userSelect: 'all' }}>{paciente.passwordAcceso}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="mb-8 p-6 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: 'rgba(180,120,60,0.7)' }}>Motivo de Consulta</p>
-          <p className="text-white/70 text-sm leading-relaxed">{paciente.motivoConsulta}</p>
-        </div>
-
+        {/* Módulos */}
         <div>
-          <p className="text-xs font-semibold tracking-widest uppercase mb-5" style={{ color: 'rgba(180,120,60,0.7)' }}>Módulos Clínicos</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914', marginBottom: '16px' }}>
+            Módulos Clínicos
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
             {modulos.map(mod => (
               <Link key={mod.nombre} href={mod.listo ? mod.href : '#'}
-                className={`p-5 rounded-xl transition-all ${mod.listo ? 'hover:bg-white/5 cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <span className="text-xl block mb-2">{mod.icono}</span>
-                <p className="text-white text-sm font-medium">{mod.nombre}</p>
-                <p className="text-xs mt-1" style={{ color: mod.listo ? '#4ade80' : 'rgba(255,255,255,0.3)' }}>
-                  {mod.listo ? 'Disponible' : 'Próximamente'}
+                style={{
+                  background: 'white', borderRadius: '14px', border: '1px solid #E8DDD0',
+                  padding: '22px', textDecoration: 'none', display: 'block',
+                  opacity: mod.listo ? 1 : 0.5, cursor: mod.listo ? 'pointer' : 'not-allowed'
+                }}>
+                <span style={{ fontSize: '24px', display: 'block', marginBottom: '10px' }}>{mod.icono}</span>
+                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '15px', fontWeight: '600', color: '#2C1810', marginBottom: '4px' }}>{mod.nombre}</p>
+                <p style={{ fontSize: '12px', color: mod.listo ? '#2D6A4F' : '#9B7B65', fontWeight: '500' }}>
+                  {mod.listo ? '✓ Disponible' : 'Próximamente'}
                 </p>
               </Link>
             ))}
@@ -122,18 +156,25 @@ export default function DetallePacientePage() {
         </div>
       </main>
 
+      {/* Modal eliminar */}
       {confirmDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-          <div className="max-w-sm w-full p-6 rounded-2xl" style={{ background: '#1a0a05', border: '1px solid rgba(220,38,38,0.3)' }}>
-            <h3 className="text-white font-medium mb-2" style={{ fontFamily: 'Georgia, serif' }}>¿Eliminar expediente?</h3>
-            <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              Se eliminará permanentemente el expediente de <strong className="text-white">{paciente.nombre}</strong>. Esta acción no se puede deshacer.
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,24,16,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px' }}>
+          <div style={{ background: 'white', borderRadius: '20px', padding: '32px', maxWidth: '400px', width: '100%', boxShadow: '0 8px 40px rgba(44,24,16,0.2)' }}>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '10px' }}>¿Eliminar expediente?</h3>
+            <p style={{ color: '#6B4F3A', fontSize: '14px', lineHeight: '1.6', marginBottom: '24px' }}>
+              Se eliminará permanentemente el expediente de <strong>{paciente.nombre}</strong>. Esta acción no se puede deshacer.
             </p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2.5 rounded-lg text-sm"
-                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>Cancelar</button>
-              <button onClick={handleEliminar} className="flex-1 py-2.5 rounded-lg text-sm font-medium"
-                style={{ background: 'rgba(220,38,38,0.8)', color: 'white' }}>Eliminar</button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setConfirmDelete(false)} style={{
+                flex: 1, padding: '12px', borderRadius: '10px', fontSize: '14px',
+                border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A',
+                cursor: 'pointer', fontFamily: "'Lato', sans-serif", fontWeight: '600'
+              }}>Cancelar</button>
+              <button onClick={handleEliminar} style={{
+                flex: 1, padding: '12px', borderRadius: '10px', fontSize: '14px',
+                background: '#9B2335', color: 'white', border: 'none',
+                cursor: 'pointer', fontFamily: "'Lato', sans-serif", fontWeight: '600'
+              }}>Eliminar</button>
             </div>
           </div>
         </div>
