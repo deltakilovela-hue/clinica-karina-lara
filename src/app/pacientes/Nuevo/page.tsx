@@ -8,7 +8,7 @@ import { auth } from '@/lib/firebase'
 import { crearPaciente, calcularEdad, generarCredenciales } from '@/lib/pacientes'
 import Link from 'next/link'
 
-const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com']
+const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 type Step = 1 | 2 | 3 | 4
 
 export default function NuevoPacientePage() {
