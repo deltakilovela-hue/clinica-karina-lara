@@ -7,7 +7,7 @@ import { auth } from '@/lib/firebase'
 import { obtenerPacientes, Paciente } from '@/lib/pacientes'
 import Link from 'next/link'
 
-const CORREO_AUTORIZADO = 'Ln.karynalaras@gmail.com'
+const CORREOS_AUTORIZADOS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com']
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -17,7 +17,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || user.email !== CORREO_AUTORIZADO) {
+      if (user && user.email && CORREOS_AUTORIZADOS.includes(user.email)) {
         router.push('/')
         return
       }
