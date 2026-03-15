@@ -52,7 +52,9 @@ export default function NuevoPacientePage() {
     setGuardando(true)
     try {
       const creds = generarCredenciales(form.nombre)
-      await createUserWithEmailAndPassword(auth, creds.correo, creds.password)
+      
+      // Crear usuario en Firebase Auth usando Admin SDK via API
+      // Por ahora solo guardamos en Firestore sin crear usuario de Auth
       const id = await crearPaciente({
         nombre: form.nombre.trim(), fechaNacimiento: form.fechaNacimiento,
         edad: calcularEdad(form.fechaNacimiento), sexo: form.sexo,
