@@ -106,21 +106,23 @@ export default function PlanPage() {
     finally { setEnviandoChat(false) }
   }
 
-  // ─── Función para descargar PDF limpio ───────────────────────────────────────
+  // ─── Función para descargar PDF limpio (sin botones) ─────────────────────────
   const descargarPDF = async () => {
     const elemento = planPdfRef.current
     if (!elemento || !paciente) return
     setDescargando(true)
 
+    // 1️⃣ Ocultar todos los botones dentro del área del plan antes de capturar
+    const botones = elemento.querySelectorAll('button')
+    botones.forEach(b => (b.style.display = 'none'))
+
     try {
-      // Importar las librerías dinámicamente (no necesitan instalarse si usas CDN)
-      // Si no tienes jspdf instalado: npm install jspdf html2canvas
       const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
         import('jspdf'),
         import('html2canvas'),
       ])
 
-      // Capturar solo el contenido del plan (sin header, chat, ni botones)
+      // 2️⃣ Capturar solo el contenido del plan (sin header, chat, ni botones)
       const canvas = await html2canvas(elemento, {
         scale: 2,
         useCORS: true,
@@ -131,8 +133,8 @@ export default function PlanPage() {
       const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF('p', 'mm', 'a4')
 
-      const pageWidth = pdf.internal.pageSize.getWidth()   // 210mm
-      const pageHeight = pdf.internal.pageSize.getHeight() // 297mm
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
       const margin = 12
       const imgWidth = pageWidth - margin * 2
       const imgHeight = (canvas.height * imgWidth) / canvas.width
@@ -140,11 +142,9 @@ export default function PlanPage() {
       let posicionY = margin
       let alturaRestante = imgHeight
 
-      // Primera página
       pdf.addImage(imgData, 'PNG', margin, posicionY, imgWidth, imgHeight)
       alturaRestante -= (pageHeight - margin * 2)
 
-      // Páginas adicionales si el contenido es largo
       while (alturaRestante > 0) {
         posicionY = alturaRestante - imgHeight + margin
         pdf.addPage()
@@ -154,10 +154,13 @@ export default function PlanPage() {
 
       const nombreArchivo = `Plan_Nutricional_${paciente.nombre.replace(/ /g, '_')}.pdf`
       pdf.save(nombreArchivo)
+
     } catch (e) {
       console.error('Error generando PDF:', e)
       alert('Error al generar el PDF. Intenta usar el botón Imprimir.')
     } finally {
+      // 3️⃣ Volver a mostrar los botones siempre (aunque haya error)
+      botones.forEach(b => (b.style.display = ''))
       setDescargando(false)
     }
   }
@@ -238,7 +241,6 @@ export default function PlanPage() {
     }
 
     lineas.forEach((linea) => {
-      // Detectar separador de tabla (|---|---|) — ignorar
       if (/^\|[-\s|:]+\|/.test(linea)) return
 
       if (linea.startsWith('| ') || linea.startsWith('|')) {
@@ -246,10 +248,8 @@ export default function PlanPage() {
         const celdas = linea.split('|').map(c => c.trim()).filter(c => c !== '')
         if (celdas.length > 0) filasTabla.push(celdas)
       } else {
-        // Fin de tabla — vaciarla antes de seguir
         if (recolectandoTabla) vaciarTabla()
 
-        // Renderizar línea normal
         if (linea.startsWith('### ')) {
           resultado.push(<h3 key={keyCounter++} style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: '#7B1B2A', marginBottom: '10px', marginTop: '24px', paddingBottom: '6px', borderBottom: '1px solid #E8DDD0' }}>{linea.replace('### ', '')}</h3>)
         } else if (linea.startsWith('## ')) {
@@ -268,7 +268,6 @@ export default function PlanPage() {
       }
     })
 
-    // Si el texto termina con una tabla
     if (recolectandoTabla) vaciarTabla()
 
     return resultado
@@ -278,7 +277,7 @@ export default function PlanPage() {
   const formatear = (texto: string) => texto.split('\n').map((linea, i) => {
     if (linea.startsWith('### ')) return <h3 key={i} style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: '#7B1B2A', marginBottom: '10px', marginTop: '24px', paddingBottom: '6px', borderBottom: '1px solid #E8DDD0' }}>{linea.replace('### ', '')}</h3>
     if (linea.startsWith('## ')) return <h2 key={i} style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', color: '#2C1810', marginBottom: '20px', marginTop: '8px' }}>{linea.replace('## ', '')}</h2>
-    if (linea.startsWith('| ')) return null // las tablas las maneja renderizarTabla
+    if (linea.startsWith('| ')) return null
     if (linea.startsWith('**') && linea.endsWith('**')) return <p key={i} style={{ fontSize: '14px', fontWeight: '700', color: '#2C1810', marginBottom: '6px', marginTop: '12px' }}>{linea.replace(/\*\*/g, '')}</p>
     if (linea.includes('**')) return <p key={i} style={{ fontSize: '14px', color: '#2C1810', marginBottom: '6px', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: linea.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
     if (linea.startsWith('- ') || linea.startsWith('* ')) return <p key={i} style={{ fontSize: '14px', color: '#2C1810', marginBottom: '4px', paddingLeft: '16px', lineHeight: '1.6' }}>• {linea.replace(/^[-*] /, '')}</p>
@@ -299,13 +298,9 @@ export default function PlanPage() {
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
 
-        /* ── Estilos de impresión: solo el contenido del plan ── */
         @media print {
-          /* Ocultar TODO excepto el área de impresión */
           body * { visibility: hidden !important; }
-
           #area-impresion, #area-impresion * { visibility: visible !important; }
-
           #area-impresion {
             position: fixed !important;
             top: 0 !important;
@@ -314,16 +309,12 @@ export default function PlanPage() {
             background: white !important;
             padding: 24px !important;
           }
-
-          /* Quitar fondos y sombras para impresión */
-          #area-impresion > div {
-            box-shadow: none !important;
-            border: none !important;
-          }
+          #area-impresion button { display: none !important; }
+          #area-impresion > div { box-shadow: none !important; border: none !important; }
         }
       `}</style>
 
-      {/* ── HEADER (se oculta al imprimir) ── */}
+      {/* ── HEADER ── */}
       <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
@@ -414,7 +405,7 @@ export default function PlanPage() {
                 ))}
               </div>
 
-              {/* ── ÁREA DE IMPRESIÓN (solo este div se imprime/descarga) ── */}
+              {/* ── ÁREA DE IMPRESIÓN ── */}
               <div id="area-impresion">
                 <div
                   ref={planPdfRef}
@@ -430,9 +421,8 @@ export default function PlanPage() {
                       </div>
                     </div>
 
-                    {/* ── BOTONES DE DESCARGA E IMPRESIÓN ── */}
+                    {/* ── BOTONES (se ocultan en PDF e impresión) ── */}
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      {/* Botón Descargar PDF */}
                       <button
                         onClick={descargarPDF}
                         disabled={descargando}
@@ -451,7 +441,6 @@ export default function PlanPage() {
                           : '⬇️ Descargar PDF'}
                       </button>
 
-                      {/* Botón Imprimir */}
                       <button
                         onClick={() => window.print()}
                         style={{
@@ -478,20 +467,13 @@ export default function PlanPage() {
                           <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', marginBottom: '20px' }}>
                             Lista del Súper — 1 semana
                           </h3>
-
-                          {/* Lista de productos */}
                           {formatear(listaSuper)}
-
-                          {/* ── TABLA DE PRESUPUESTO ── */}
                           {presupuesto && (
                             <div style={{ marginTop: '28px', background: '#FAF7F2', borderRadius: '14px', padding: '20px', border: '1px solid #E8DDD0' }}>
                               <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: '#7B1B2A', marginBottom: '14px' }}>
                                 💰 Presupuesto Estimado — Tepic
                               </h4>
-
-                              {/* Aquí usamos renderizarTabla en lugar de formatear */}
                               {renderizarTabla(presupuesto)}
-
                               <p style={{ fontSize: '11px', color: '#9B7B65', marginTop: '12px', fontStyle: 'italic' }}>
                                 * Precios de referencia aproximados para Walmart/Soriana/Chedraui en Tepic, Nayarit. Pueden variar.
                               </p>
