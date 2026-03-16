@@ -417,8 +417,7 @@ export default function ExpedientePage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                         <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '14px', fontWeight: '600', color: '#2C1810' }}>
                           {formatFecha(s.fecha)}
-                          {s.pesoActual && <span style={{ fontSize: '12px', color: '#9B7B65', fontWeight: '400', marginLeft: '10px' }}>• {String(s.pesoActual)} kg</span>}
-                        </p>
+{!!s.pesoActual && <span style={{ fontSize: '12px', color: '#9B7B65', fontWeight: '400', marginLeft: '10px' }}>• {String(s.pesoActual)} kg</span>}                        </p>
                         <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', background: `${toleranciaColor}18`, color: toleranciaColor, border: `1px solid ${toleranciaColor}40` }}>
                           {toleranciaLabel}
                         </span>
@@ -434,7 +433,7 @@ export default function ExpedientePage() {
                           </div>
                         )}
                       </div>
-                      {s.notasEvolucion && (
+                      {!!s.notasEvolucion && (
                         <p style={{ fontSize: '13px', color: '#6B4F3A', marginTop: '10px', fontStyle: 'italic', borderLeft: '3px solid #E8DDD0', paddingLeft: '10px' }}>
                           "{String(s.notasEvolucion)}"
                         </p>
