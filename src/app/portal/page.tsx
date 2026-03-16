@@ -18,7 +18,7 @@ export default function PortalPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) { router.replace('/'); return }
+      if (!user) { router.replace('/portal/login'); return }
       if (ADMINS.includes(user.email ?? '')) { router.replace('/dashboard'); return }
       
       setUsuarioEmail(user.email || '')
