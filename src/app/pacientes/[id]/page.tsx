@@ -53,7 +53,7 @@ export default function DetallePacientePage() {
   const modulos = [
     { nombre: 'Historia Clínica', icono: '📋', href: `/pacientes/${id}/historia`, listo: true },
     { nombre: 'Antropometría', icono: '📏', href: `/pacientes/${id}/antropometria`, listo: true },
-    { nombre: 'Diagnóstico', icono: '🩺', href: `/pacientes/${id}/diagnostico`, listo: false },
+    { nombre: 'Diagnóstico', icono: '🩺', href: `/pacientes/${id}/diagnostico`, listo: true },
     { nombre: 'Plan Nutricional IA', icono: '🧠', href: `/pacientes/${id}/plan`, listo: true },
     { nombre: 'Seguimiento', icono: '📊', href: `/pacientes/${id}/seguimiento`, listo: true },
     { nombre: 'Expediente Completo', icono: '🗂️', href: `/pacientes/${id}/expediente`, listo: true },
