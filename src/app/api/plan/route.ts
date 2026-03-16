@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const { paciente, historia, antropometria } = await req.json()
+    const { paciente, historia, antropometria, mensajeChat, planPrevio } = await req.json()
 
-    const prompt = `Eres una nutrióloga clínica especializada en nutrición pediátrica, neurodesarrollo y salud intestinal infantil. Tu tarea es generar un plan nutricional personalizado y detallado.
+    const esModoChat = !!mensajeChat && !!planPrevio
+
+    const prompt = esModoChat
+      ? `Eres una nutrióloga clínica especializada en nutrición pediátrica. Tienes el siguiente plan nutricional generado previamente:
+
+${planPrevio}
+
+El usuario quiere hacer el siguiente cambio o tiene la siguiente pregunta:
+"${mensajeChat}"
+
+Responde de forma profesional y si aplica, genera el plan nutricional completo actualizado con los mismos secciones (PLAN NUTRICIONAL, DESAYUNO, COLACIÓN MATUTINA, COMIDA, COLACIÓN VESPERTINA, CENA, RECOMENDACIONES PARA PADRES, ALIMENTOS A EVITAR, LISTA DEL SÚPER, PRESUPUESTO ESTIMADO). Si solo es una pregunta, respóndela sin regenerar el plan completo.`
+
+      : `Eres una nutrióloga clínica especializada en nutrición pediátrica, neurodesarrollo y salud intestinal infantil. Tu tarea es generar un plan nutricional personalizado y detallado.
 
 DATOS DEL PACIENTE:
 - Nombre: ${paciente.nombre}
@@ -65,7 +77,40 @@ ${historia?.diagnosticosPrevios?.toLowerCase().includes('tea') || historia?.diag
 ### ALIMENTOS A EVITAR
 [Lista con justificación clínica]
 
-Usa alimentos mexicanos comunes y asequibles. Sé específico con las porciones usando medidas caseras (tazas, cucharadas, piezas). El plan debe ser realista para una familia mexicana.`
+### LISTA DEL SÚPER
+[Genera una lista de compras completa y organizada por categorías con las cantidades necesarias para UNA SEMANA. Formato:]
+
+**🥩 Proteínas:**
+- [alimento] — [cantidad para 1 semana]
+
+**🥦 Verduras y frutas:**
+- [alimento] — [cantidad para 1 semana]
+
+**🌾 Cereales y tubérculos:**
+- [alimento] — [cantidad para 1 semana]
+
+**🥛 Lácteos:**
+- [alimento] — [cantidad para 1 semana]
+
+**🫙 Despensa (aceites, condimentos, otros):**
+- [alimento] — [cantidad para 1 semana]
+
+### PRESUPUESTO ESTIMADO
+[Genera una tabla de presupuesto con precios de referencia para Tepic, Nayarit (Walmart/Soriana/Chedraui 2025). Formato:]
+
+| Categoría | Productos | Costo estimado/semana |
+|-----------|-----------|----------------------|
+| Proteínas | [lista] | $[monto] |
+| Verduras y frutas | [lista] | $[monto] |
+| Cereales | [lista] | $[monto] |
+| Lácteos | [lista] | $[monto] |
+| Despensa | [lista] | $[monto] |
+| **TOTAL SEMANAL** | | **$[total]** |
+| **TOTAL MENSUAL** | | **$[total x4]** |
+
+Nota: Precios de referencia aproximados para supermercados en Tepic, Nayarit. Pueden variar según temporada y tienda.
+
+Usa alimentos mexicanos comunes y asequibles. Sé específico con las porciones usando medidas caseras (tazas, cucharadas, piezas). El plan debe ser realista para una familia mexicana de Tepic, Nayarit.`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -76,7 +121,7 @@ Usa alimentos mexicanos comunes y asequibles. Sé específico con las porciones 
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
+        max_tokens: 6000,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -88,8 +133,8 @@ Usa alimentos mexicanos comunes y asequibles. Sé específico con las porciones 
 
     const data = await response.json()
     const planTexto = data.content[0].text
-
     return NextResponse.json({ plan: planTexto })
+
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: 'Error generando el plan' }, { status: 500 })
