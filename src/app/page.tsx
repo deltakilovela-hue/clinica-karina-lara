@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
+import { onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
@@ -39,15 +39,14 @@ export default function LoginPage() {
     setEntrando(true); setError('')
     try {
       await signInWithEmailAndPassword(auth, correo, password)
-      // onAuthStateChanged se encarga de redirigir
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
         setError('Correo o contraseña incorrectos. Verifica tus datos.')
       } else if (code === 'auth/too-many-requests') {
-        setError('Demasiados intentos. Espera unos minutos e intenta de nuevo.')
+        setError('Demasiados intentos. Espera unos minutos.')
       } else if (code === 'auth/user-disabled') {
-        setError('Esta cuenta ha sido desactivada. Contacta a la clínica.')
+        setError('Esta cuenta ha sido desactivada.')
       } else {
         setError('Error al iniciar sesión. Intenta de nuevo.')
       }
@@ -71,6 +70,27 @@ export default function LoginPage() {
       }
     } finally {
       setEnviandoRecuperar(false)
+    }
+  }
+
+  const handleAdminLogin = async () => {
+    setMostrarAdmin(false)
+    setError('')
+    try {
+      const provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account' })
+      const result = await signInWithPopup(auth, provider)
+      if (ADMINS.includes(result.user.email ?? '')) {
+        router.push('/dashboard')
+      } else {
+        await auth.signOut()
+        setError('Acceso no autorizado. Solo para la Lic. Karina Lara.')
+      }
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code
+      if (code !== 'auth/popup-closed-by-user') {
+        setError('Error al iniciar sesión con Google.')
+      }
     }
   }
 
@@ -145,7 +165,7 @@ export default function LoginPage() {
                   Correo enviado
                 </h2>
                 <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.6', marginBottom: '24px' }}>
-                  Revisa tu bandeja de entrada en <strong style={{ color: 'white' }}>{correoRecuperar}</strong> y sigue las instrucciones para restablecer tu contraseña.
+                  Revisa tu bandeja en <strong style={{ color: 'white' }}>{correoRecuperar}</strong> y sigue las instrucciones para restablecer tu contraseña.
                 </p>
                 <button onClick={() => { setModoRecuperar(false); setRecuperarExito(false); setCorreoRecuperar('') }} style={{
                   width: '100%', padding: '13px', borderRadius: '12px', fontSize: '14px', fontWeight: '600',
@@ -163,18 +183,12 @@ export default function LoginPage() {
                   Recuperar contraseña
                 </h2>
                 <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginBottom: '24px', lineHeight: '1.5' }}>
-                  Escribe el correo con el que te registraste y te enviaremos un enlace para crear una nueva contraseña.
+                  Escribe tu correo y te enviaremos un enlace para crear una nueva contraseña.
                 </p>
                 <form onSubmit={handleRecuperar}>
                   <div style={{ marginBottom: '20px' }}>
                     <label style={labelStyle}>Tu correo electrónico</label>
-                    <input
-                      type="email"
-                      value={correoRecuperar}
-                      onChange={e => setCorreoRecuperar(e.target.value)}
-                      placeholder="tu@correo.com"
-                      style={inputStyle}
-                    />
+                    <input type="email" value={correoRecuperar} onChange={e => setCorreoRecuperar(e.target.value)} placeholder="tu@correo.com" style={inputStyle} />
                   </div>
                   {error && (
                     <div style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '16px', background: 'rgba(155,35,53,0.2)', border: '1px solid rgba(155,35,53,0.4)', color: '#F5A0A9', fontSize: '13px' }}>
@@ -210,14 +224,7 @@ export default function LoginPage() {
             <form onSubmit={handleLogin}>
               <div style={{ marginBottom: '16px' }}>
                 <label style={labelStyle}>Correo electrónico</label>
-                <input
-                  type="email"
-                  value={correo}
-                  onChange={e => setCorreo(e.target.value)}
-                  placeholder="tu@correo.com"
-                  autoComplete="email"
-                  style={inputStyle}
-                />
+                <input type="email" value={correo} onChange={e => setCorreo(e.target.value)} placeholder="tu@correo.com" autoComplete="email" style={inputStyle} />
               </div>
 
               <div style={{ marginBottom: '8px' }}>
@@ -241,7 +248,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Link olvidé mi contraseña */}
               <div style={{ textAlign: 'right', marginBottom: '20px' }}>
                 <button type="button" onClick={() => { setModoRecuperar(true); setError(''); setCorreoRecuperar(correo) }} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
@@ -303,11 +309,13 @@ export default function LoginPage() {
               </p>
               <button onClick={() => setMostrarAdmin(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: '18px', lineHeight: 1, padding: 0 }}>×</button>
             </div>
-            <a href="/dashboard" style={{
+
+            {/* ── BOTÓN GOOGLE ADMIN ── */}
+            <button onClick={handleAdminLogin} style={{
               display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px',
               borderRadius: '10px', background: 'linear-gradient(135deg, #7B1B2A, #A63244)',
-              color: 'white', textDecoration: 'none', fontSize: '13px', fontWeight: '600',
-              fontFamily: "'Lato', sans-serif",
+              color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+              fontFamily: "'Lato', sans-serif", width: '100%',
             }}>
               <svg width="14" height="14" viewBox="0 0 48 48" style={{ flexShrink: 0 }}>
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
@@ -316,13 +324,15 @@ export default function LoginPage() {
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
               </svg>
               Entrar con Google (Karina)
-            </a>
+            </button>
+
             <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginTop: '10px', textAlign: 'center' }}>
               Solo para la Lic. Karina Lara
             </p>
           </div>
         )}
       </div>
+
     </div>
   )
 }
