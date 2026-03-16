@@ -19,6 +19,8 @@ export default function PlanPage() {
   const params = useParams()
   const id = params.id as string
   const chatRef = useRef<HTMLDivElement>(null)
+  const planPdfRef = useRef<HTMLDivElement>(null)
+  const [descargando, setDescargando] = useState(false)
 
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [planes, setPlanes] = useState<Plan[]>([])
@@ -104,6 +106,63 @@ export default function PlanPage() {
     finally { setEnviandoChat(false) }
   }
 
+  // ─── Función para descargar PDF limpio ───────────────────────────────────────
+  const descargarPDF = async () => {
+    const elemento = planPdfRef.current
+    if (!elemento || !paciente) return
+    setDescargando(true)
+
+    try {
+      // Importar las librerías dinámicamente (no necesitan instalarse si usas CDN)
+      // Si no tienes jspdf instalado: npm install jspdf html2canvas
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ])
+
+      // Capturar solo el contenido del plan (sin header, chat, ni botones)
+      const canvas = await html2canvas(elemento, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+
+      const pageWidth = pdf.internal.pageSize.getWidth()   // 210mm
+      const pageHeight = pdf.internal.pageSize.getHeight() // 297mm
+      const margin = 12
+      const imgWidth = pageWidth - margin * 2
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      let posicionY = margin
+      let alturaRestante = imgHeight
+
+      // Primera página
+      pdf.addImage(imgData, 'PNG', margin, posicionY, imgWidth, imgHeight)
+      alturaRestante -= (pageHeight - margin * 2)
+
+      // Páginas adicionales si el contenido es largo
+      while (alturaRestante > 0) {
+        posicionY = alturaRestante - imgHeight + margin
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', margin, posicionY, imgWidth, imgHeight)
+        alturaRestante -= (pageHeight - margin * 2)
+      }
+
+      const nombreArchivo = `Plan_Nutricional_${paciente.nombre.replace(/ /g, '_')}.pdf`
+      pdf.save(nombreArchivo)
+    } catch (e) {
+      console.error('Error generando PDF:', e)
+      alert('Error al generar el PDF. Intenta usar el botón Imprimir.')
+    } finally {
+      setDescargando(false)
+    }
+  }
+
+  // ─── Extraer secciones del texto del plan ────────────────────────────────────
   const extraerSeccion = (texto: string, desde: string, hasta?: string) => {
     const ini = texto.indexOf(desde)
     if (ini === -1) return ''
@@ -117,10 +176,109 @@ export default function PlanPage() {
   const listaSuper = planActual ? extraerSeccion(planActual, '### LISTA DEL SÚPER', '### PRESUPUESTO ESTIMADO') : ''
   const presupuesto = planActual ? extraerSeccion(planActual, '### PRESUPUESTO ESTIMADO') : ''
 
+  // ─── Renderizar tabla de presupuesto con HTML real ───────────────────────────
+  const renderizarTabla = (texto: string) => {
+    const lineas = texto.split('\n')
+    const filasTabla: string[][] = []
+    let recolectandoTabla = false
+    const resultado: React.ReactNode[] = []
+    let keyCounter = 0
+
+    const vaciarTabla = () => {
+      if (filasTabla.length < 2) { filasTabla.length = 0; return }
+
+      const [encabezado, ...filas] = filasTabla
+      resultado.push(
+        <div key={`tabla-${keyCounter++}`} style={{ overflowX: 'auto', marginBottom: '16px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #E8DDD0' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: 'linear-gradient(135deg, #7B1B2A, #A63244)' }}>
+                {encabezado.map((h, j) => (
+                  <th key={j} style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    color: 'white',
+                    fontWeight: '600',
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: '13px',
+                  }}>
+                    {h.replace(/\*\*/g, '')}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((fila, fi) => {
+                const esTotal = fila.some(c => c.toUpperCase().includes('TOTAL'))
+                return (
+                  <tr key={fi} style={{
+                    background: esTotal ? '#F5E8EB' : fi % 2 === 0 ? 'white' : '#FAF7F2',
+                    borderBottom: '1px solid #E8DDD0',
+                  }}>
+                    {fila.map((celda, ci) => (
+                      <td key={ci} style={{
+                        padding: '10px 16px',
+                        color: esTotal ? '#7B1B2A' : '#2C1810',
+                        fontWeight: esTotal ? '700' : '400',
+                        fontFamily: "'Lato', sans-serif",
+                        fontSize: '13px',
+                      }}>
+                        {celda.replace(/\*\*/g, '')}
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+      filasTabla.length = 0
+      recolectandoTabla = false
+    }
+
+    lineas.forEach((linea) => {
+      // Detectar separador de tabla (|---|---|) — ignorar
+      if (/^\|[-\s|:]+\|/.test(linea)) return
+
+      if (linea.startsWith('| ') || linea.startsWith('|')) {
+        recolectandoTabla = true
+        const celdas = linea.split('|').map(c => c.trim()).filter(c => c !== '')
+        if (celdas.length > 0) filasTabla.push(celdas)
+      } else {
+        // Fin de tabla — vaciarla antes de seguir
+        if (recolectandoTabla) vaciarTabla()
+
+        // Renderizar línea normal
+        if (linea.startsWith('### ')) {
+          resultado.push(<h3 key={keyCounter++} style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: '#7B1B2A', marginBottom: '10px', marginTop: '24px', paddingBottom: '6px', borderBottom: '1px solid #E8DDD0' }}>{linea.replace('### ', '')}</h3>)
+        } else if (linea.startsWith('## ')) {
+          resultado.push(<h2 key={keyCounter++} style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', color: '#2C1810', marginBottom: '20px', marginTop: '8px' }}>{linea.replace('## ', '')}</h2>)
+        } else if (linea.startsWith('**') && linea.endsWith('**')) {
+          resultado.push(<p key={keyCounter++} style={{ fontSize: '14px', fontWeight: '700', color: '#2C1810', marginBottom: '6px', marginTop: '12px' }}>{linea.replace(/\*\*/g, '')}</p>)
+        } else if (linea.includes('**')) {
+          resultado.push(<p key={keyCounter++} style={{ fontSize: '14px', color: '#2C1810', marginBottom: '6px', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: linea.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />)
+        } else if (linea.startsWith('- ') || linea.startsWith('* ')) {
+          resultado.push(<p key={keyCounter++} style={{ fontSize: '14px', color: '#2C1810', marginBottom: '4px', paddingLeft: '16px', lineHeight: '1.6' }}>• {linea.replace(/^[-*] /, '')}</p>)
+        } else if (linea.trim() === '') {
+          resultado.push(<div key={keyCounter++} style={{ height: '8px' }} />)
+        } else {
+          resultado.push(<p key={keyCounter++} style={{ fontSize: '14px', color: '#2C1810', marginBottom: '6px', lineHeight: '1.6' }}>{linea}</p>)
+        }
+      }
+    })
+
+    // Si el texto termina con una tabla
+    if (recolectandoTabla) vaciarTabla()
+
+    return resultado
+  }
+
+  // ─── Renderizar texto normal (sin tablas) ────────────────────────────────────
   const formatear = (texto: string) => texto.split('\n').map((linea, i) => {
     if (linea.startsWith('### ')) return <h3 key={i} style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: '#7B1B2A', marginBottom: '10px', marginTop: '24px', paddingBottom: '6px', borderBottom: '1px solid #E8DDD0' }}>{linea.replace('### ', '')}</h3>
     if (linea.startsWith('## ')) return <h2 key={i} style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', color: '#2C1810', marginBottom: '20px', marginTop: '8px' }}>{linea.replace('## ', '')}</h2>
-    if (linea.startsWith('| ')) return <p key={i} style={{ fontSize: '13px', color: '#2C1810', marginBottom: '4px', fontFamily: 'monospace', background: linea.includes('TOTAL') ? '#F5E8EB' : 'transparent', padding: '4px 8px', borderRadius: '4px' }}>{linea}</p>
+    if (linea.startsWith('| ')) return null // las tablas las maneja renderizarTabla
     if (linea.startsWith('**') && linea.endsWith('**')) return <p key={i} style={{ fontSize: '14px', fontWeight: '700', color: '#2C1810', marginBottom: '6px', marginTop: '12px' }}>{linea.replace(/\*\*/g, '')}</p>
     if (linea.includes('**')) return <p key={i} style={{ fontSize: '14px', color: '#2C1810', marginBottom: '6px', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: linea.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
     if (linea.startsWith('- ') || linea.startsWith('* ')) return <p key={i} style={{ fontSize: '14px', color: '#2C1810', marginBottom: '4px', paddingLeft: '16px', lineHeight: '1.6' }}>• {linea.replace(/^[-*] /, '')}</p>
@@ -137,8 +295,35 @@ export default function PlanPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
 
+        /* ── Estilos de impresión: solo el contenido del plan ── */
+        @media print {
+          /* Ocultar TODO excepto el área de impresión */
+          body * { visibility: hidden !important; }
+
+          #area-impresion, #area-impresion * { visibility: visible !important; }
+
+          #area-impresion {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            background: white !important;
+            padding: 24px !important;
+          }
+
+          /* Quitar fondos y sombras para impresión */
+          #area-impresion > div {
+            box-shadow: none !important;
+            border: none !important;
+          }
+        }
+      `}</style>
+
+      {/* ── HEADER (se oculta al imprimir) ── */}
       <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
@@ -154,7 +339,9 @@ export default function PlanPage() {
             color: generando ? '#9B7B65' : 'white', border: 'none', cursor: generando ? 'not-allowed' : 'pointer',
             fontFamily: "'Lato', sans-serif", display: 'flex', alignItems: 'center', gap: '8px'
           }}>
-            {generando ? <><div style={{ width: '14px', height: '14px', border: '2px solid #9B7B65', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Generando...</> : '🧠 Nuevo Plan con IA'}
+            {generando
+              ? <><div style={{ width: '14px', height: '14px', border: '2px solid #9B7B65', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Generando...</>
+              : '🧠 Nuevo Plan con IA'}
           </button>
         </div>
       </header>
@@ -165,7 +352,11 @@ export default function PlanPage() {
           <p style={{ color: '#9B7B65', fontSize: '14px' }}>{paciente?.nombre} · {planes.length} plan{planes.length !== 1 ? 'es' : ''} generado{planes.length !== 1 ? 's' : ''}</p>
         </div>
 
-        {error && <div style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', background: '#FDECEA', border: '1px solid #F5C2C7', color: '#9B2335', fontSize: '14px' }}>⚠️ {error}</div>}
+        {error && (
+          <div style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', background: '#FDECEA', border: '1px solid #F5C2C7', color: '#9B2335', fontSize: '14px' }}>
+            ⚠️ {error}
+          </div>
+        )}
 
         {generando && (
           <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', padding: '48px', textAlign: 'center', marginBottom: '24px' }}>
@@ -189,18 +380,21 @@ export default function PlanPage() {
         {planActual && !generando && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '24px', alignItems: 'start' }}>
 
-            {/* Columna principal */}
+            {/* ── COLUMNA PRINCIPAL ── */}
             <div>
-              {/* Versiones */}
+              {/* Selector de versiones */}
               {planes.length > 1 && (
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto' }}>
                   {planes.map((p, i) => (
                     <button key={p.id} onClick={() => { setPlanActual(p.texto); setHistorialChat([]) }} style={{
-                      padding: '6px 14px', borderRadius: '20px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Lato', sans-serif", whiteSpace: 'nowrap',
+                      padding: '6px 14px', borderRadius: '20px', fontSize: '13px', cursor: 'pointer',
+                      fontFamily: "'Lato', sans-serif", whiteSpace: 'nowrap',
                       background: planActual === p.texto ? '#7B1B2A' : 'white',
                       color: planActual === p.texto ? 'white' : '#6B4F3A',
                       border: planActual === p.texto ? '1.5px solid #7B1B2A' : '1.5px solid #E8DDD0',
-                    }}>Plan {planes.length - i} · {p.fechaCreacion?.toDate().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</button>
+                    }}>
+                      Plan {planes.length - i} · {p.fechaCreacion?.toDate().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                    </button>
                   ))}
                 </div>
               )}
@@ -212,57 +406,110 @@ export default function PlanPage() {
                   { key: 'super', label: '🛒 Lista del Súper' },
                 ].map(t => (
                   <button key={t.key} onClick={() => setTab(t.key as 'plan' | 'super' | 'chat')} style={{
-                    padding: '8px 18px', borderRadius: '9px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif", border: 'none',
+                    padding: '8px 18px', borderRadius: '9px', fontSize: '13px', fontWeight: '600',
+                    cursor: 'pointer', fontFamily: "'Lato', sans-serif", border: 'none',
                     background: tab === t.key ? '#7B1B2A' : 'transparent',
                     color: tab === t.key ? 'white' : '#6B4F3A',
                   }}>{t.label}</button>
                 ))}
               </div>
 
-              {/* Contenido tabs */}
-              <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', padding: '36px', boxShadow: '0 2px 16px rgba(44,24,16,0.06)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #E8DDD0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🧠</div>
-                    <div>
-                      <p style={{ fontWeight: '600', color: '#2C1810', fontSize: '14px' }}>Generado con Claude AI</p>
-                      <p style={{ fontSize: '12px', color: '#9B7B65' }}>Clínica Karina Lara</p>
+              {/* ── ÁREA DE IMPRESIÓN (solo este div se imprime/descarga) ── */}
+              <div id="area-impresion">
+                <div
+                  ref={planPdfRef}
+                  style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', padding: '36px', boxShadow: '0 2px 16px rgba(44,24,16,0.06)' }}
+                >
+                  {/* Cabecera del plan */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #E8DDD0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🧠</div>
+                      <div>
+                        <p style={{ fontWeight: '600', color: '#2C1810', fontSize: '14px' }}>Generado con Claude AI</p>
+                        <p style={{ fontSize: '12px', color: '#9B7B65' }}>Clínica Karina Lara</p>
+                      </div>
+                    </div>
+
+                    {/* ── BOTONES DE DESCARGA E IMPRESIÓN ── */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {/* Botón Descargar PDF */}
+                      <button
+                        onClick={descargarPDF}
+                        disabled={descargando}
+                        style={{
+                          padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                          border: 'none',
+                          background: descargando ? '#E8DDD0' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                          color: descargando ? '#9B7B65' : 'white',
+                          cursor: descargando ? 'not-allowed' : 'pointer',
+                          fontFamily: "'Lato', sans-serif",
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                        }}
+                      >
+                        {descargando
+                          ? <><div style={{ width: '12px', height: '12px', border: '2px solid #9B7B65', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Generando...</>
+                          : '⬇️ Descargar PDF'}
+                      </button>
+
+                      {/* Botón Imprimir */}
+                      <button
+                        onClick={() => window.print()}
+                        style={{
+                          padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                          border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A',
+                          cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+                        }}
+                      >
+                        🖨️ Imprimir
+                      </button>
                     </div>
                   </div>
-                  <button onClick={() => window.print()} style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>
-                    🖨️ Imprimir
-                  </button>
+
+                  {/* ── CONTENIDO TAB PLAN ── */}
+                  {tab === 'plan' && (
+                    <div>{formatear(planSinExtras || planActual)}</div>
+                  )}
+
+                  {/* ── CONTENIDO TAB SÚPER ── */}
+                  {tab === 'super' && (
+                    <div>
+                      {listaSuper ? (
+                        <div>
+                          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', marginBottom: '20px' }}>
+                            Lista del Súper — 1 semana
+                          </h3>
+
+                          {/* Lista de productos */}
+                          {formatear(listaSuper)}
+
+                          {/* ── TABLA DE PRESUPUESTO ── */}
+                          {presupuesto && (
+                            <div style={{ marginTop: '28px', background: '#FAF7F2', borderRadius: '14px', padding: '20px', border: '1px solid #E8DDD0' }}>
+                              <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: '#7B1B2A', marginBottom: '14px' }}>
+                                💰 Presupuesto Estimado — Tepic
+                              </h4>
+
+                              {/* Aquí usamos renderizarTabla en lugar de formatear */}
+                              {renderizarTabla(presupuesto)}
+
+                              <p style={{ fontSize: '11px', color: '#9B7B65', marginTop: '12px', fontStyle: 'italic' }}>
+                                * Precios de referencia aproximados para Walmart/Soriana/Chedraui en Tepic, Nayarit. Pueden variar.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p style={{ color: '#9B7B65', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
+                          La lista del súper se genera con el plan. Genera un nuevo plan para verla.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-
-                {tab === 'plan' && <div>{formatear(planSinExtras || planActual)}</div>}
-
-                {tab === 'super' && (
-                  <div>
-                    {listaSuper ? (
-                      <div>
-                        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', marginBottom: '20px' }}>Lista del Súper — 1 semana</h3>
-                        {formatear(listaSuper)}
-                        {presupuesto && (
-                          <div style={{ marginTop: '28px', background: '#FAF7F2', borderRadius: '14px', padding: '20px', border: '1px solid #E8DDD0' }}>
-                            <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: '#7B1B2A', marginBottom: '14px' }}>💰 Presupuesto Estimado — Tepic</h4>
-                            {formatear(presupuesto)}
-                            <p style={{ fontSize: '11px', color: '#9B7B65', marginTop: '12px', fontStyle: 'italic' }}>
-                              * Precios de referencia aproximados para Walmart/Soriana/Chedraui en Tepic, Nayarit. Pueden variar.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p style={{ color: '#9B7B65', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
-                        La lista del súper se genera con el plan. Genera un nuevo plan para verla.
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Chat lateral */}
+            {/* ── CHAT LATERAL ── */}
             <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', overflow: 'hidden', boxShadow: '0 2px 16px rgba(44,24,16,0.06)', position: 'sticky', top: '24px' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8DDD0', background: 'linear-gradient(135deg, #7B1B2A, #A63244)' }}>
                 <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', color: 'white', fontWeight: '600', marginBottom: '2px' }}>🧠 Chat con IA</p>
@@ -295,7 +542,7 @@ export default function PlanPage() {
                     color: m.rol === 'usuario' ? 'white' : '#2C1810',
                     alignSelf: m.rol === 'usuario' ? 'flex-end' : 'flex-start',
                     maxWidth: '85%',
-                    border: m.rol === 'asistente' ? '1px solid #E8DDD0' : 'none'
+                    border: m.rol === 'asistente' ? '1px solid #E8DDD0' : 'none',
                   }}>
                     {m.texto.length > 300 ? m.texto.substring(0, 300) + '... [Plan actualizado arriba]' : m.texto}
                   </div>
@@ -320,26 +567,23 @@ export default function PlanPage() {
                   placeholder="Pide un cambio al plan..."
                   style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', fontSize: '13px', border: '1.5px solid #E8DDD0', background: '#FAF7F2', color: '#2C1810', outline: 'none', fontFamily: "'Lato', sans-serif" }}
                 />
-                <button onClick={enviarChat} disabled={enviandoChat || !mensajeChat.trim()} style={{
-                  padding: '10px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
-                  background: enviandoChat || !mensajeChat.trim() ? '#E8DDD0' : '#7B1B2A',
-                  color: enviandoChat || !mensajeChat.trim() ? '#9B7B65' : 'white',
-                  border: 'none', cursor: enviandoChat || !mensajeChat.trim() ? 'not-allowed' : 'pointer',
-                  fontFamily: "'Lato', sans-serif"
-                }}>→</button>
+                <button
+                  onClick={enviarChat}
+                  disabled={enviandoChat || !mensajeChat.trim()}
+                  style={{
+                    padding: '10px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
+                    background: enviandoChat || !mensajeChat.trim() ? '#E8DDD0' : '#7B1B2A',
+                    color: enviandoChat || !mensajeChat.trim() ? '#9B7B65' : 'white',
+                    border: 'none', cursor: enviandoChat || !mensajeChat.trim() ? 'not-allowed' : 'pointer',
+                    fontFamily: "'Lato', sans-serif",
+                  }}
+                >→</button>
               </div>
             </div>
+
           </div>
         )}
       </main>
-
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
-        @media print {
-          header, button, .chat-panel { display: none !important; }
-          body { background: white !important; }
-        }
-      `}</style>
     </div>
   )
 }
