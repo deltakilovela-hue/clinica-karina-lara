@@ -52,6 +52,8 @@ export default function NuevoPacientePage() {
     setGuardando(true)
     try {
       const creds = generarCredenciales(form.nombre)
+
+      // 1️⃣ Crear paciente en Firestore
       const id = await crearPaciente({
         nombre: form.nombre.trim(), fechaNacimiento: form.fechaNacimiento,
         edad: calcularEdad(form.fechaNacimiento), sexo: form.sexo,
@@ -60,6 +62,14 @@ export default function NuevoPacientePage() {
         motivoConsulta: form.motivoConsulta.trim(),
         correoAcceso: creds.correo, passwordAcceso: creds.password,
       })
+
+      // 2️⃣ Crear usuario en Firebase Authentication
+      await fetch('/api/auth-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo: creds.correo, password: creds.password, accion: 'crear' }),
+      })
+
       setCredenciales(creds)
       setPacienteId(id)
       setStep(4)
@@ -117,54 +127,45 @@ export default function NuevoPacientePage() {
                     width: '32px', height: '32px', borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '13px', fontWeight: '700',
-                    background: step === s.n ? '#7B1B2A' : step > s.n ? '#D8F3DC' : '#F2EDE4',
-                    color: step === s.n ? 'white' : step > s.n ? '#2D6A4F' : '#9B7B65',
-                    border: step > s.n ? '1.5px solid #95D5A8' : '1.5px solid transparent'
+                    background: step === s.n ? '#7B1B2A' : step > s.n ? '#2D6A4F' : 'white',
+                    color: step >= s.n ? 'white' : '#9B7B65',
+                    border: step < s.n ? '2px solid #E8DDD0' : 'none',
                   }}>{step > s.n ? '✓' : s.n}</div>
                   <span style={{ fontSize: '13px', color: step === s.n ? '#2C1810' : '#9B7B65', fontWeight: step === s.n ? '600' : '400' }}>{s.l}</span>
                 </div>
-                {i < 2 && <div style={{ width: '32px', height: '1px', background: '#E8DDD0', margin: '0 4px' }} />}
+                {i < steps.length - 1 && <div style={{ width: '32px', height: '1px', background: '#E8DDD0', margin: '0 4px' }} />}
               </div>
             ))}
           </div>
         )}
 
-        {/* Card */}
         <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', padding: '36px', boxShadow: '0 2px 16px rgba(44,24,16,0.06)' }}>
 
+          {error && <div style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', background: '#FDECEA', border: '1px solid #F5C2C7', color: '#9B2335', fontSize: '14px' }}>⚠️ {error}</div>}
+
+          {/* Step 1 */}
           {step === 1 && (
-            <div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '24px' }}>Datos del Paciente</h2>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={labelStyle}>Nombre Completo *</label>
-                <input type="text" style={inputStyle} placeholder="Nombre completo del niño/niña"
-                  value={form.nombre} onChange={e => set('nombre', e.target.value)} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={labelStyle}>Nombre completo del niño *</label>
+                <input style={inputStyle} placeholder="Ej: María García López" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={labelStyle}>Fecha de Nacimiento *</label>
-                  <input type="date" style={{ ...inputStyle, colorScheme: 'light' }}
-                    value={form.fechaNacimiento} onChange={e => set('fechaNacimiento', e.target.value)} />
-                  {form.fechaNacimiento && (
-                    <p style={{ fontSize: '12px', color: '#8B6914', marginTop: '6px' }}>
-                      Edad: {calcularEdad(form.fechaNacimiento)} años
-                    </p>
-                  )}
+                  <label style={labelStyle}>Fecha de nacimiento *</label>
+                  <input type="date" style={{ ...inputStyle, colorScheme: 'light' }} value={form.fechaNacimiento} onChange={e => set('fechaNacimiento', e.target.value)} />
                 </div>
                 <div>
                   <label style={labelStyle}>Sexo *</label>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    {(['masculino', 'femenino'] as const).map(sx => (
-                      <button key={sx} type="button" onClick={() => set('sexo', sx)}
-                        style={{
-                          flex: 1, padding: '11px', borderRadius: '10px', fontSize: '13px',
-                          fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
-                          background: form.sexo === sx ? '#7B1B2A' : '#FAF7F2',
-                          color: form.sexo === sx ? 'white' : '#6B4F3A',
-                          border: form.sexo === sx ? '1.5px solid #7B1B2A' : '1.5px solid #E8DDD0'
-                        }}>
-                        {sx === 'masculino' ? '♂ Niño' : '♀ Niña'}
-                      </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {['masculino', 'femenino'].map(s => (
+                      <button key={s} onClick={() => set('sexo', s)} style={{
+                        flex: 1, padding: '12px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer',
+                        fontFamily: "'Lato', sans-serif", fontWeight: '500', border: '1.5px solid',
+                        borderColor: form.sexo === s ? '#7B1B2A' : '#E8DDD0',
+                        background: form.sexo === s ? '#F5E8EB' : 'white',
+                        color: form.sexo === s ? '#7B1B2A' : '#6B4F3A',
+                      }}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>
                     ))}
                   </div>
                 </div>
@@ -172,39 +173,35 @@ export default function NuevoPacientePage() {
             </div>
           )}
 
+          {/* Step 2 */}
           {step === 2 && (
-            <div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '24px' }}>Información del Tutor</h2>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={labelStyle}>Nombre del Tutor *</label>
-                <input type="text" style={inputStyle} placeholder="Nombre completo del responsable"
-                  value={form.tutor} onChange={e => set('tutor', e.target.value)} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={labelStyle}>Nombre del tutor *</label>
+                <input style={inputStyle} placeholder="Papá, mamá o tutor responsable" value={form.tutor} onChange={e => set('tutor', e.target.value)} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={labelStyle}>Teléfono *</label>
-                  <input type="tel" style={inputStyle} placeholder="311 000 0000"
-                    value={form.telefono} onChange={e => set('telefono', e.target.value)} />
+                  <input style={inputStyle} placeholder="10 dígitos" value={form.telefono} onChange={e => set('telefono', e.target.value)} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Correo del Tutor</label>
-                  <input type="email" style={inputStyle} placeholder="correo@ejemplo.com"
-                    value={form.correo} onChange={e => set('correo', e.target.value)} />
+                  <label style={labelStyle}>Correo del tutor</label>
+                  <input type="email" style={inputStyle} placeholder="correo@ejemplo.com" value={form.correo} onChange={e => set('correo', e.target.value)} />
                 </div>
               </div>
               <div>
                 <label style={labelStyle}>Dirección</label>
-                <input type="text" style={inputStyle} placeholder="Calle, número, colonia, ciudad"
-                  value={form.direccion} onChange={e => set('direccion', e.target.value)} />
+                <input style={inputStyle} placeholder="Ciudad, colonia..." value={form.direccion} onChange={e => set('direccion', e.target.value)} />
               </div>
             </div>
           )}
 
+          {/* Step 3 */}
           {step === 3 && (
-            <div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '24px' }}>Motivo de Consulta</h2>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={labelStyle}>¿Por qué acude a consulta? *</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={labelStyle}>Motivo de consulta *</label>
                 <textarea style={{ ...inputStyle, resize: 'none', minHeight: '120px' }}
                   placeholder="Describe el motivo principal, síntomas, diagnósticos previos..."
                   value={form.motivoConsulta} onChange={e => set('motivoConsulta', e.target.value)} />
@@ -221,6 +218,7 @@ export default function NuevoPacientePage() {
             </div>
           )}
 
+          {/* Step 4 - Éxito */}
           {step === 4 && credenciales && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
@@ -233,29 +231,26 @@ export default function NuevoPacientePage() {
                   Credenciales — Portal para Padres
                 </p>
                 <div style={{ marginBottom: '14px' }}>
+                  <p style={{ fontSize: '12px', color: '#6B4F3A', marginBottom: '6px' }}>URL del portal</p>
+                  <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#2C1810', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
+                    clinica-karina-lara.vercel.app/portal/login
+                  </p>
+                </div>
+                <div style={{ marginBottom: '14px' }}>
                   <p style={{ fontSize: '12px', color: '#6B4F3A', marginBottom: '6px' }}>Usuario (correo)</p>
-                  <p style={{
-                    fontFamily: 'monospace', fontSize: '14px', color: '#2C1810',
-                    background: 'white', padding: '10px 14px', borderRadius: '8px',
-                    border: '1px solid #E8DDD0', userSelect: 'all' as const
-                  }}>{credenciales.correo}</p>
+                  <p style={{ fontFamily: 'monospace', fontSize: '14px', color: '#2C1810', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E8DDD0', userSelect: 'all' as const }}>{credenciales.correo}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: '12px', color: '#6B4F3A', marginBottom: '6px' }}>Contraseña</p>
-                  <p style={{
-                    fontFamily: 'monospace', fontSize: '14px', color: '#2C1810',
-                    background: 'white', padding: '10px 14px', borderRadius: '8px',
-                    border: '1px solid #E8DDD0', userSelect: 'all' as const
-                  }}>{credenciales.password}</p>
+                  <p style={{ fontFamily: 'monospace', fontSize: '14px', color: '#2C1810', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E8DDD0', userSelect: 'all' as const }}>{credenciales.password}</p>
                 </div>
-                <p style={{ fontSize: '12px', color: '#9B7B65', marginTop: '12px' }}>💡 Haz clic para seleccionar y copiar</p>
+                <p style={{ fontSize: '12px', color: '#9B7B65', marginTop: '12px' }}>💡 Haz clic en cada campo para seleccionar y copiar</p>
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <Link href={`/pacientes/${pacienteId}`} style={{
                   flex: 1, padding: '13px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
                   background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white',
                   textDecoration: 'none', textAlign: 'center' as const,
-                  boxShadow: '0 2px 8px rgba(123,27,42,0.25)'
                 }}>Ver Expediente</Link>
                 <Link href="/pacientes/nuevo" style={{
                   flex: 1, padding: '13px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
@@ -266,38 +261,26 @@ export default function NuevoPacientePage() {
             </div>
           )}
 
-          {error && (
-            <div style={{
-              marginTop: '16px', padding: '12px 16px', borderRadius: '10px',
-              background: '#FDECEA', border: '1px solid #F5C2C7', color: '#9B2335', fontSize: '13px'
-            }}>{error}</div>
-          )}
+          {error && step < 4 && <div style={{ marginTop: '12px', padding: '12px 16px', borderRadius: '10px', background: '#FDECEA', border: '1px solid #F5C2C7', color: '#9B2335', fontSize: '14px' }}>⚠️ {error}</div>}
 
           {step < 4 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '28px' }}>
-              {step > 1 ? (
-                <button onClick={() => setStep(s => (s - 1) as Step)} style={{
-                  padding: '11px 22px', borderRadius: '10px', fontSize: '14px',
-                  border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A',
-                  cursor: 'pointer', fontFamily: "'Lato', sans-serif"
-                }}>← Anterior</button>
-              ) : <div />}
-              {step < 3 ? (
-                <button onClick={siguiente} style={{
-                  padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
-                  background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white',
-                  border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
-                  boxShadow: '0 2px 8px rgba(123,27,42,0.25)'
-                }}>Siguiente →</button>
-              ) : (
-                <button onClick={guardar} disabled={guardando} style={{
-                  padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
-                  background: 'linear-gradient(135deg, #2D6A4F, #40916C)', color: 'white',
-                  border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
-                  opacity: guardando ? 0.7 : 1,
-                  boxShadow: '0 2px 8px rgba(45,106,79,0.25)'
-                }}>{guardando ? 'Creando...' : '✓ Crear Expediente'}</button>
-              )}
+              {step > 1
+                ? <button onClick={() => setStep(s => (s - 1) as Step)} style={{ padding: '12px 24px', borderRadius: '10px', fontSize: '14px', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', cursor: 'pointer', fontFamily: "'Lato', sans-serif", fontWeight: '600' }}>← Anterior</button>
+                : <div />
+              }
+              {step < 3
+                ? <button onClick={siguiente} style={{ padding: '12px 28px', borderRadius: '10px', fontSize: '14px', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif", fontWeight: '600' }}>Siguiente →</button>
+                : <button onClick={guardar} disabled={guardando} style={{
+                    padding: '12px 28px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
+                    background: guardando ? '#E8DDD0' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                    color: guardando ? '#9B7B65' : 'white', border: 'none',
+                    cursor: guardando ? 'not-allowed' : 'pointer', fontFamily: "'Lato', sans-serif",
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                  }}>
+                    {guardando ? <><div style={{ width: '14px', height: '14px', border: '2px solid #9B7B65', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Guardando...</> : '✓ Crear Expediente'}
+                  </button>
+              }
             </div>
           )}
         </div>
