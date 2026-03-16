@@ -56,7 +56,7 @@ export default function DetallePacientePage() {
     { nombre: 'Diagnóstico', icono: '🩺', href: `/pacientes/${id}/diagnostico`, listo: false },
     { nombre: 'Plan Nutricional IA', icono: '🧠', href: `/pacientes/${id}/plan`, listo: true },
     { nombre: 'Seguimiento', icono: '📊', href: `/pacientes/${id}/seguimiento`, listo: true },
-    { nombre: 'Expediente Completo', icono: '🗂️', href: `/pacientes/${id}/expediente`, listo: false },
+    { nombre: 'Expediente Completo', icono: '🗂️', href: `/pacientes/${id}/expediente`, listo: true },
   ]
 
   return (

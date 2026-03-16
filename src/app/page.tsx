@@ -59,7 +59,7 @@ export default function DashboardPage() {
     { nombre: 'Antropometría', desc: 'Peso, talla y percentiles OMS', href: '#', icono: '📏', activo: true },
     { nombre: 'Plan Nutricional IA', desc: 'Generado con Claude API', href: '#', icono: '🧠', activo: true },
     { nombre: 'Seguimiento Digestivo', desc: 'Evolución y síntomas GI', href: '#', icono: '📊', activo: true },
-    { nombre: 'Expediente Completo', desc: 'Historial integral', href: '#', icono: '🗂️', activo: false },
+    { nombre: 'Expediente Completo', desc: 'Historial integral', href: '#', icono: '🗂️', activo: true },
   ]
 
   return (
