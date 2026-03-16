@@ -416,7 +416,7 @@ export default function PlanPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🧠</div>
                       <div>
-                        <p style={{ fontWeight: '600', color: '#2C1810', fontSize: '14px' }}>Generado con Claude AI</p>
+                        <p style={{ fontWeight: '600', color: '#2C1810', fontSize: '14px' }}>Plan de alimentación</p>
                         <p style={{ fontSize: '12px', color: '#9B7B65' }}>Clínica Karina Lara</p>
                       </div>
                     </div>
