@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { obtenerPaciente, Paciente } from '@/lib/pacientes'
-import { collection, addDoc, getDocs, orderBy, query, Timestamp } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, doc, getDocs, orderBy, query, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
 
@@ -66,6 +66,8 @@ export default function HistoriaClinicaPage() {
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
   const [mostrarConfirmHome, setMostrarConfirmHome] = useState(false)
+  const [historiaExpandida, setHistoriaExpandida] = useState<string | null>(null)
+  const [historiaEditandoId, setHistoriaEditandoId] = useState<string | null>(null)
 
   const [form, setForm] = useState<Omit<HistoriaClinica, 'id' | 'fechaCreacion'>>({
     fechaConsulta: new Date().toISOString().split('T')[0],
@@ -108,16 +110,75 @@ export default function HistoriaClinicaPage() {
     }))
   }
 
+  const formVacio = {
+    fechaConsulta: new Date().toISOString().split('T')[0],
+    antecedentesperinatales: '', semanasGestacion: '', pesoNacer: '',
+    tipoNacimiento: '', medicamentosActuales: '', alergias: '',
+    intolerancias: '', diagnosticosPrevios: '', sintomasGI: [] as string[],
+    sintomasGIOtros: '', conductaAlimentaria: '', texturasAceptadas: '',
+    texturasRechazadas: '', alimentosFavoritos: '', alimentosRechazados: '',
+    horasSueno: '', actividadFisica: '', horariasComida: '', quienCocina: '',
+    presupuestoAlimentario: '', habitosFamiliares: '', personasHogar: '',
+    notasAdicionales: '',
+  }
+
+  const abrirNueva = () => {
+    setForm(formVacio)
+    setHistoriaEditandoId(null)
+    setMostrarForm(true)
+    setStep(1)
+    setError('')
+  }
+
+  const abrirEditar = (h: HistoriaClinica) => {
+    setForm({
+      fechaConsulta: h.fechaConsulta,
+      antecedentesperinatales: h.antecedentesperinatales || '',
+      semanasGestacion: h.semanasGestacion || '',
+      pesoNacer: h.pesoNacer || '',
+      tipoNacimiento: h.tipoNacimiento || '',
+      medicamentosActuales: h.medicamentosActuales || '',
+      alergias: h.alergias || '',
+      intolerancias: h.intolerancias || '',
+      diagnosticosPrevios: h.diagnosticosPrevios || '',
+      sintomasGI: h.sintomasGI || [],
+      sintomasGIOtros: h.sintomasGIOtros || '',
+      conductaAlimentaria: h.conductaAlimentaria || '',
+      texturasAceptadas: h.texturasAceptadas || '',
+      texturasRechazadas: h.texturasRechazadas || '',
+      alimentosFavoritos: h.alimentosFavoritos || '',
+      alimentosRechazados: h.alimentosRechazados || '',
+      horasSueno: h.horasSueno || '',
+      actividadFisica: h.actividadFisica || '',
+      horariasComida: h.horariasComida || '',
+      quienCocina: h.quienCocina || '',
+      presupuestoAlimentario: h.presupuestoAlimentario || '',
+      habitosFamiliares: h.habitosFamiliares || '',
+      personasHogar: h.personasHogar || '',
+      notasAdicionales: h.notasAdicionales || '',
+    })
+    setHistoriaEditandoId(h.id!)
+    setMostrarForm(true)
+    setStep(1)
+    setError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const guardar = async () => {
     setGuardando(true)
     try {
-      await addDoc(collection(db, `pacientes/${id}/historiasClinicas`), {
-        ...form, fechaCreacion: Timestamp.now()
-      })
+      if (historiaEditandoId) {
+        await updateDoc(doc(db, `pacientes/${id}/historiasClinicas`, historiaEditandoId), { ...form })
+      } else {
+        await addDoc(collection(db, `pacientes/${id}/historiasClinicas`), {
+          ...form, fechaCreacion: Timestamp.now()
+        })
+      }
       await cargarHistorias()
       setMostrarForm(false)
+      setHistoriaEditandoId(null)
       setStep(1)
-      setExito('Historia clínica guardada correctamente')
+      setExito(historiaEditandoId ? 'Historia actualizada correctamente' : 'Historia clínica guardada correctamente')
       setTimeout(() => setExito(''), 3000)
     } catch (e) { setError('Error al guardar'); console.error(e) }
     finally { setGuardando(false) }
@@ -169,7 +230,7 @@ export default function HistoriaClinicaPage() {
             <span style={{ color: '#C9B8A8' }}>/</span>
             <span style={{ color: '#2C1810', fontWeight: '600' }}>Historia Clínica</span>
           </div>
-          <button onClick={() => { setMostrarForm(true); setStep(1); setError('') }} style={{
+          <button onClick={abrirNueva} style={{
             padding: '9px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
             background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white',
             border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
@@ -194,7 +255,7 @@ export default function HistoriaClinicaPage() {
         {mostrarForm && (
           <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', padding: '36px', marginBottom: '28px', boxShadow: '0 2px 16px rgba(44,24,16,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810' }}>Nueva Historia Clínica</h2>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810' }}>{historiaEditandoId ? '✏️ Editar Historia Clínica' : 'Nueva Historia Clínica'}</h2>
               <div>
                 <label style={lS}>Fecha de consulta</label>
                 <input type="date" style={{ ...iS, width: 'auto', colorScheme: 'light' }}
@@ -385,7 +446,7 @@ export default function HistoriaClinicaPage() {
                 <button onClick={() => setStep(s => (s + 1) as Step)} style={{ padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Siguiente →</button>
               ) : (
                 <button onClick={guardar} disabled={guardando} style={{ padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', background: 'linear-gradient(135deg, #2D6A4F, #40916C)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif", opacity: guardando ? 0.7 : 1 }}>
-                  {guardando ? 'Guardando...' : '✓ Guardar Historia'}
+                  {guardando ? 'Guardando...' : historiaEditandoId ? '✓ Actualizar Historia' : '✓ Guardar Historia'}
                 </button>
               )}
             </div>
@@ -398,16 +459,19 @@ export default function HistoriaClinicaPage() {
             <p style={{ fontSize: '36px', marginBottom: '12px' }}>📋</p>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', marginBottom: '8px' }}>Sin historias clínicas</p>
             <p style={{ color: '#9B7B65', fontSize: '14px', marginBottom: '20px' }}>Registra la primera historia clínica del paciente</p>
-            <button onClick={() => setMostrarForm(true)} style={{ padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>+ Nueva Historia</button>
+            <button onClick={abrirNueva} style={{ padding: '11px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>+ Nueva Historia</button>
           </div>
         ) : historias.length > 0 && (
           <div>
             <h2 style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914', marginBottom: '16px' }}>
               Historias Registradas ({historias.length})
             </h2>
-            {historias.map((h, i) => (
-              <div key={h.id} style={{ background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', padding: '24px', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            {historias.map((h, i) => {
+              const expandida = historiaExpandida === h.id
+              return (
+              <div key={h.id} style={{ background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', padding: '24px', marginBottom: '16px', boxShadow: '0 2px 12px rgba(44,24,16,0.05)' }}>
+                {/* Cabecera */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                   <div>
                     <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', fontWeight: '600' }}>
                       Historia #{historias.length - i}
@@ -416,34 +480,143 @@ export default function HistoriaClinicaPage() {
                       {new Date(h.fechaConsulta + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                   </div>
-                  {(h.sintomasGI.length > 0 || h.sintomasGIOtros) && (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', maxWidth: '420px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                      {h.sintomasGI.map(s => (
-                        <span key={s} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#F5E8EB', color: '#7B1B2A', fontWeight: '600' }}>{s}</span>
-                      ))}
-                      {h.sintomasGIOtros && (
-                        <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFF3E0', color: '#C4831A', fontWeight: '600' }}>Otros: {h.sintomasGIOtros}</span>
-                      )}
-                    </div>
-                  )}
+                  {/* Botones Editar / Ver completo */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => abrirEditar(h)} style={{
+                      padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+                      background: '#FAF7F2', color: '#7B1B2A', border: '1.5px solid #E8DDD0', fontFamily: "'Lato', sans-serif",
+                    }}>✏️ Editar</button>
+                    <button onClick={() => setHistoriaExpandida(expandida ? null : h.id!)} style={{
+                      padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+                      background: expandida ? '#7B1B2A' : '#FAF7F2',
+                      color: expandida ? 'white' : '#2C1810',
+                      border: '1.5px solid #E8DDD0', fontFamily: "'Lato', sans-serif",
+                    }}>{expandida ? '▲ Cerrar' : '▼ Ver completo'}</button>
+                  </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+
+                {/* Síntomas GI chips */}
+                {(h.sintomasGI.length > 0 || h.sintomasGIOtros) && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    {h.sintomasGI.map(s => (
+                      <span key={s} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#F5E8EB', color: '#7B1B2A', fontWeight: '600' }}>{s}</span>
+                    ))}
+                    {h.sintomasGIOtros && (
+                      <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFF3E0', color: '#C4831A', fontWeight: '600' }}>Otros: {h.sintomasGIOtros}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Resumen siempre visible */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                   {[
-                    { label: 'Diagnósticos', valor: h.diagnosticosPrevios },
+                    { label: 'Diagnósticos previos', valor: h.diagnosticosPrevios },
                     { label: 'Alergias', valor: h.alergias },
                     { label: 'Medicamentos', valor: h.medicamentosActuales },
-                    { label: 'Alimentos favoritos', valor: h.alimentosFavoritos },
-                    { label: 'Alimentos rechazados', valor: h.alimentosRechazados },
-                    { label: 'Texturas aceptadas', valor: h.texturasAceptadas },
                   ].filter(x => x.valor).map(item => (
-                    <div key={item.label} style={{ background: '#FAF7F2', borderRadius: '10px', padding: '14px', border: '1px solid #E8DDD0' }}>
-                      <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8B6914', marginBottom: '6px' }}>{item.label}</p>
+                    <div key={item.label} style={{ background: '#FAF7F2', borderRadius: '10px', padding: '12px', border: '1px solid #E8DDD0' }}>
+                      <p style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8B6914', marginBottom: '5px' }}>{item.label}</p>
                       <p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.5' }}>{item.valor}</p>
                     </div>
                   ))}
                 </div>
+
+                {/* DETALLE COMPLETO (expansible) */}
+                {expandida && (
+                  <div style={{ marginTop: '20px', borderTop: '1px solid #E8DDD0', paddingTop: '20px' }}>
+                    {/* Antecedentes perinatales */}
+                    {(h.semanasGestacion || h.pesoNacer || h.tipoNacimiento || h.antecedentesperinatales) && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <p style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#7B1B2A', marginBottom: '10px' }}>Antecedentes Perinatales</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: h.antecedentesperinatales ? '10px' : 0 }}>
+                          {h.semanasGestacion && <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '10px', border: '1px solid #E8DDD0' }}><p style={{ fontSize: '10px', color: '#8B6914', fontWeight: '700', marginBottom: '4px' }}>SEMANAS GESTACIÓN</p><p style={{ fontSize: '14px', color: '#2C1810' }}>{h.semanasGestacion}</p></div>}
+                          {h.pesoNacer && <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '10px', border: '1px solid #E8DDD0' }}><p style={{ fontSize: '10px', color: '#8B6914', fontWeight: '700', marginBottom: '4px' }}>PESO AL NACER</p><p style={{ fontSize: '14px', color: '#2C1810' }}>{h.pesoNacer} kg</p></div>}
+                          {h.tipoNacimiento && <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '10px', border: '1px solid #E8DDD0' }}><p style={{ fontSize: '10px', color: '#8B6914', fontWeight: '700', marginBottom: '4px' }}>TIPO NACIMIENTO</p><p style={{ fontSize: '14px', color: '#2C1810' }}>{h.tipoNacimiento}</p></div>}
+                        </div>
+                        {h.antecedentesperinatales && <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '12px', border: '1px solid #E8DDD0' }}><p style={{ fontSize: '10px', color: '#8B6914', fontWeight: '700', marginBottom: '4px' }}>NOTAS PERINATALES</p><p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.6' }}>{h.antecedentesperinatales}</p></div>}
+                      </div>
+                    )}
+
+                    {/* Intolerancias */}
+                    {h.intolerancias && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <p style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#7B1B2A', marginBottom: '10px' }}>Intolerancias</p>
+                        <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '12px', border: '1px solid #E8DDD0' }}>
+                          <p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.6' }}>{h.intolerancias}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Conducta alimentaria */}
+                    {(h.conductaAlimentaria || h.texturasAceptadas || h.texturasRechazadas || h.alimentosFavoritos || h.alimentosRechazados) && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <p style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#7B1B2A', marginBottom: '10px' }}>Conducta Alimentaria</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          {[
+                            { label: 'Descripción general', valor: h.conductaAlimentaria },
+                            { label: 'Texturas aceptadas', valor: h.texturasAceptadas },
+                            { label: 'Texturas rechazadas', valor: h.texturasRechazadas },
+                            { label: 'Alimentos favoritos', valor: h.alimentosFavoritos },
+                            { label: 'Alimentos rechazados', valor: h.alimentosRechazados },
+                          ].filter(x => x.valor).map(item => (
+                            <div key={item.label} style={{ background: '#FAF7F2', borderRadius: '10px', padding: '12px', border: '1px solid #E8DDD0' }}>
+                              <p style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: '#8B6914', marginBottom: '5px' }}>{item.label}</p>
+                              <p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.5' }}>{item.valor}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sueño y actividad */}
+                    {(h.horasSueno || h.actividadFisica) && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <p style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#7B1B2A', marginBottom: '10px' }}>Hábitos de Vida</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          {h.horasSueno && <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '12px', border: '1px solid #E8DDD0' }}><p style={{ fontSize: '10px', color: '#8B6914', fontWeight: '700', marginBottom: '4px' }}>HORAS DE SUEÑO</p><p style={{ fontSize: '13px', color: '#2C1810' }}>{h.horasSueno}</p></div>}
+                          {h.actividadFisica && <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '12px', border: '1px solid #E8DDD0' }}><p style={{ fontSize: '10px', color: '#8B6914', fontWeight: '700', marginBottom: '4px' }}>ACTIVIDAD FÍSICA</p><p style={{ fontSize: '13px', color: '#2C1810' }}>{h.actividadFisica}</p></div>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contexto familiar */}
+                    {(h.personasHogar || h.quienCocina || h.presupuestoAlimentario || h.horariasComida || h.habitosFamiliares) && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <p style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#7B1B2A', marginBottom: '10px' }}>Contexto Familiar</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          {[
+                            { label: 'Personas en el hogar', valor: h.personasHogar },
+                            { label: '¿Quién cocina?', valor: h.quienCocina },
+                            { label: 'Presupuesto alimentario', valor: h.presupuestoAlimentario },
+                            { label: 'Horarios de comida', valor: h.horariasComida },
+                            { label: 'Hábitos familiares', valor: h.habitosFamiliares },
+                          ].filter(x => x.valor).map(item => (
+                            <div key={item.label} style={{ background: '#FAF7F2', borderRadius: '10px', padding: '12px', border: '1px solid #E8DDD0' }}>
+                              <p style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: '#8B6914', marginBottom: '5px' }}>{item.label}</p>
+                              <p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.5' }}>{item.valor}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notas adicionales */}
+                    {h.notasAdicionales && (
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#7B1B2A', marginBottom: '10px' }}>Notas Adicionales</p>
+                        <div style={{ background: '#FAF7F2', borderRadius: '10px', padding: '14px', border: '1px solid #E8DDD0' }}>
+                          <p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.6' }}>{h.notasAdicionales}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Botón cerrar */}
+                    <button onClick={() => setHistoriaExpandida(null)} style={{ width: '100%', marginTop: '16px', padding: '10px', borderRadius: '10px', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>▲ Cerrar detalle</button>
+                  </div>
+                )}
               </div>
-            ))}
+            )
+            })}
           </div>
         )}
       </main>
