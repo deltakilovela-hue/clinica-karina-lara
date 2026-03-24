@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generarMenuExcelXML } from '@/lib/generar-menu-excel'
+import { generarMenuExcelXML, DiaMenu } from '@/lib/generar-menu-excel'
 
 const DIAS_ES = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
 // variantes con/sin tildes que Claude puede generar
@@ -23,8 +23,8 @@ function normalizarDia(d: string): string {
  *   **Colación AM:** contenido
  *   ...
  */
-function parsearPlan(planTexto: string): Record<string, Record<string, string>> {
-  const resultado: Record<string, Record<string, string>> = {}
+function parsearPlan(planTexto: string): Record<string, DiaMenu> {
+  const resultado: Record<string, DiaMenu> = {}
 
   // Dividir el texto por secciones de día (### LUNES, ### MARTES, etc.)
   // Capturamos cualquier ### seguido de uno de los días de la semana
@@ -75,7 +75,7 @@ export async function POST(
     }
 
     // ── Parsear el plan directamente ────────────────────────────────────────
-    let menuDias = parsearPlan(planTexto)
+    let menuDias: Record<string, DiaMenu> = parsearPlan(planTexto)
 
     // Si no se encontraron suficientes días (plan viejo con formato anterior),
     // usar el contenido general del plan para todos los días con nota
