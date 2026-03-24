@@ -26,12 +26,15 @@ export default function ExpedientePage() {
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [cargando, setCargando] = useState(true)
   const [tab, setTab] = useState<Tab>('resumen')
+  const [descargando, setDescargando] = useState(false)
+  const [errorDescarga, setErrorDescarga] = useState('')
 
   // Datos de cada módulo
   const [historia, setHistoria] = useState<Record<string, unknown> | null>(null)
   const [mediciones, setMediciones] = useState<Record<string, unknown>[]>([])
   const [planes, setPlanes] = useState<Record<string, unknown>[]>([])
   const [seguimientos, setSeguimientos] = useState<Record<string, unknown>[]>([])
+  const [diagnostico, setDiagnostico] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -39,7 +42,7 @@ export default function ExpedientePage() {
       try {
         const p = await obtenerPaciente(id)
         setPaciente(p)
-        await Promise.all([cargarHistoria(), cargarMediciones(), cargarPlanes(), cargarSeguimientos()])
+        await Promise.all([cargarHistoria(), cargarMediciones(), cargarPlanes(), cargarSeguimientos(), cargarDiagnostico()])
       } catch (e) { console.error(e) }
       finally { setCargando(false) }
     })
@@ -65,6 +68,54 @@ export default function ExpedientePage() {
     const q = query(collection(db, `pacientes/${id}/seguimientos`), orderBy('fecha', 'desc'))
     const snap = await getDocs(q)
     setSeguimientos(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  }
+
+  const cargarDiagnostico = async () => {
+    try {
+      const q = query(collection(db, `pacientes/${id}/diagnosticos`), orderBy('fechaCreacion', 'desc'))
+      const snap = await getDocs(q)
+      if (snap.docs.length > 0) setDiagnostico({ id: snap.docs[0].id, ...snap.docs[0].data() })
+    } catch { /* colección puede no existir */ }
+  }
+
+  const descargarExpediente = async () => {
+    if (!paciente) return
+    setDescargando(true)
+    setErrorDescarga('')
+    try {
+      const payload = {
+        paciente: { ...paciente, id },
+        historia,
+        mediciones,
+        diagnostico,
+        planes,
+        seguimientos,
+      }
+      const res = await fetch(`/api/expediente/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setErrorDescarga(err.error || 'Error al generar el expediente')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Expediente_${paciente.nombre}.docx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setErrorDescarga('Error de conexión al generar el expediente')
+      console.error(e)
+    } finally {
+      setDescargando(false)
+    }
   }
 
   const formatFecha = (ts: unknown) => {
@@ -108,9 +159,28 @@ export default function ExpedientePage() {
             <span style={{ color: '#C9B8A8' }}>/</span>
             <span style={{ color: '#2C1810', fontWeight: '600' }}>Expediente</span>
           </div>
-          <Link href={`/pacientes/${id}`} style={{ fontSize: '13px', color: '#7B1B2A', textDecoration: 'none', fontWeight: '600' }}>
-            ← Volver al paciente
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {errorDescarga && (
+              <span style={{ fontSize: '12px', color: '#B71C1C', background: '#FDECEA', padding: '4px 10px', borderRadius: '8px' }}>
+                ⚠️ {errorDescarga}
+              </span>
+            )}
+            <button
+              onClick={descargarExpediente}
+              disabled={descargando || cargando}
+              style={{
+                padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
+                background: descargando ? '#C9B8A8' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                color: 'white', border: 'none', cursor: descargando ? 'not-allowed' : 'pointer',
+                fontFamily: "'Lato', sans-serif", display: 'flex', alignItems: 'center', gap: '6px',
+              }}
+            >
+              {descargando ? '⏳ Generando...' : '📄 Descargar Expediente'}
+            </button>
+            <Link href={`/pacientes/${id}`} style={{ fontSize: '13px', color: '#7B1B2A', textDecoration: 'none', fontWeight: '600' }}>
+              ← Volver al paciente
+            </Link>
+          </div>
         </div>
       </header>
 

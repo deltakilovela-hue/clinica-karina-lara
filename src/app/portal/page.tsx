@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
@@ -65,71 +65,108 @@ export default function PortalPage() {
     try { return (ts as { toDate: () => Date }).toDate().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) } catch { return '—' }
   }
 
-  // Extrae una sección del texto del plan
+  // Extrae una sección del texto del plan (búsqueda flexible, insensible a mayúsculas/tildes)
   const extraerSeccion = (texto: string, desde: string, hasta?: string) => {
-    const ini = texto.indexOf(desde)
+    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const textoN = normalize(texto)
+    const desdeN = normalize(desde)
+    const ini = textoN.indexOf(desdeN)
     if (ini === -1) return ''
     const start = ini + desde.length
     if (!hasta) return texto.slice(start).trim()
-    const fin = texto.indexOf(hasta, start)
+    const hastaN = normalize(hasta)
+    const fin = textoN.indexOf(hastaN, start)
     return fin === -1 ? texto.slice(start).trim() : texto.slice(start, fin).trim()
   }
 
-  // Renderiza el texto del plan en HTML legible
+  // Detecta y agrupa líneas de tabla markdown
   const renderizarTexto = (texto: string) => {
-    return texto.split('\n').map((linea, i) => {
-      const l = linea.trim()
-      if (!l) return <div key={i} style={{ height: '10px' }} />
-      if (l.startsWith('---')) return <hr key={i} style={{ border: 'none', borderTop: '1px solid #E8DDD0', margin: '18px 0' }} />
-      if (l.startsWith('## ') || l.startsWith('# ')) return (
-        <h2 key={i} style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', fontWeight: '700', color: '#7B1B2A', margin: '24px 0 10px', paddingBottom: '8px', borderBottom: '2px solid #F0E4E7' }}>
-          {l.replace(/^#{1,2} /, '')}
-        </h2>
-      )
-      if (l.startsWith('### ')) return (
-        <h3 key={i} style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '15px', fontWeight: '700', color: '#5C1521', margin: '20px 0 8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {l.replace('### ', '')}
-        </h3>
-      )
-      if (l.startsWith('**') && l.endsWith('**') && !l.slice(2, -2).includes('**')) return (
-        <p key={i} style={{ fontSize: '14px', fontWeight: '700', color: '#2C1810', margin: '14px 0 6px' }}>
-          {l.replace(/\*\*/g, '')}
-        </p>
-      )
+    const lineas = texto.split('\n')
+    const resultado: React.ReactNode[] = []
+    let i = 0
+    while (i < lineas.length) {
+      const l = lineas[i].trim()
+      // Detectar inicio de tabla markdown
+      if (l.startsWith('|') && l.endsWith('|')) {
+        const filas: string[][] = []
+        while (i < lineas.length) {
+          const fila = lineas[i].trim()
+          if (!fila.startsWith('|')) break
+          // Saltar la línea separadora |---|---|
+          if (/^\|[\s\-|]+\|$/.test(fila)) { i++; continue }
+          const celdas = fila.split('|').slice(1, -1).map(c => c.trim())
+          filas.push(celdas)
+          i++
+        }
+        if (filas.length > 0) {
+          resultado.push(
+            <div key={`table-${i}`} style={{ overflowX: 'auto', margin: '16px 0' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ background: '#7B1B2A' }}>
+                    {filas[0].map((c, ci) => (
+                      <th key={ci} style={{ padding: '10px 14px', color: 'white', fontWeight: '700', textAlign: 'left', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}
+                        dangerouslySetInnerHTML={{ __html: c.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filas.slice(1).map((fila, fi) => (
+                    <tr key={fi} style={{ background: fi % 2 === 0 ? '#FAF7F2' : 'white', borderBottom: '1px solid #E8DDD0' }}>
+                      {fila.map((c, ci) => (
+                        <td key={ci} style={{ padding: '9px 14px', color: '#2C1810', borderRight: '1px solid #E8DDD0', lineHeight: '1.5' }}
+                          dangerouslySetInnerHTML={{ __html: c.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+        continue
+      }
+      if (!l) { resultado.push(<div key={i} style={{ height: '10px' }} />); i++; continue }
+      if (l.startsWith('---')) { resultado.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid #E8DDD0', margin: '18px 0' }} />); i++; continue }
+      if (l.startsWith('## ') || l.startsWith('# ')) {
+        resultado.push(<h2 key={i} style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', fontWeight: '700', color: '#7B1B2A', margin: '24px 0 10px', paddingBottom: '8px', borderBottom: '2px solid #F0E4E7' }}>{l.replace(/^#{1,2} /, '')}</h2>); i++; continue
+      }
+      if (l.startsWith('### ')) {
+        resultado.push(<h3 key={i} style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '15px', fontWeight: '700', color: '#5C1521', margin: '20px 0 8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{l.replace('### ', '')}</h3>); i++; continue
+      }
+      if (l.startsWith('**') && l.endsWith('**') && !l.slice(2, -2).includes('**')) {
+        resultado.push(<p key={i} style={{ fontSize: '14px', fontWeight: '700', color: '#2C1810', margin: '14px 0 6px' }}>{l.replace(/\*\*/g, '')}</p>); i++; continue
+      }
       if (l.startsWith('- ') || l.startsWith('* ')) {
-        const texto = l.replace(/^[-*] /, '')
-        const partes = texto.split(/\*\*(.*?)\*\*/g)
-        return (
+        const txt = l.replace(/^[-*] /, '')
+        const partes = txt.split(/\*\*(.*?)\*\*/g)
+        resultado.push(
           <div key={i} style={{ display: 'flex', gap: '10px', margin: '5px 0', paddingLeft: '4px' }}>
             <span style={{ color: '#A63244', fontWeight: '700', flexShrink: 0, marginTop: '1px' }}>•</span>
             <p style={{ fontSize: '15px', color: '#3D2010', lineHeight: '1.65', margin: 0 }}>
               {partes.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}
             </p>
           </div>
-        )
+        ); i++; continue
       }
-      // Líneas numeradas
       if (/^\d+\. /.test(l)) {
-        const num = l.match(/^(\d+)\. (.*)/)?.[1]
+        const num = l.match(/^(\d+)\. /)?.[1]
         const cont = l.replace(/^\d+\. /, '')
-        return (
+        resultado.push(
           <div key={i} style={{ display: 'flex', gap: '10px', margin: '5px 0', paddingLeft: '4px' }}>
             <span style={{ color: '#A63244', fontWeight: '700', flexShrink: 0, minWidth: '18px' }}>{num}.</span>
             <p style={{ fontSize: '15px', color: '#3D2010', lineHeight: '1.65', margin: 0 }}>{cont}</p>
           </div>
-        )
+        ); i++; continue
       }
-      // Líneas con negrita inline
       if (l.includes('**')) {
         const partes = l.split(/\*\*(.*?)\*\*/g)
-        return (
-          <p key={i} style={{ fontSize: '15px', color: '#3D2010', lineHeight: '1.65', margin: '4px 0' }}>
-            {partes.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}
-          </p>
-        )
+        resultado.push(<p key={i} style={{ fontSize: '15px', color: '#3D2010', lineHeight: '1.65', margin: '4px 0' }}>{partes.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}</p>); i++; continue
       }
-      return <p key={i} style={{ fontSize: '15px', color: '#3D2010', lineHeight: '1.65', margin: '4px 0' }}>{l}</p>
-    })
+      resultado.push(<p key={i} style={{ fontSize: '15px', color: '#3D2010', lineHeight: '1.65', margin: '4px 0' }}>{l}</p>)
+      i++
+    }
+    return resultado
   }
 
   if (cargando) return (
@@ -140,8 +177,27 @@ export default function PortalPage() {
   )
 
   const ultimaMed = mediciones[0] as Record<string, unknown> | undefined
-  const planSeccion = planActual ? (extraerSeccion(planActual, '## PLAN NUTRICIONAL', '### LISTA DEL SÚPER') || extraerSeccion(planActual, '## PLAN NUTRICIONAL') || planActual) : ''
-  const listaSuper = planActual ? extraerSeccion(planActual, '### LISTA DEL SÚPER') : ''
+
+  // Encabezados posibles para la lista del súper (el AI puede variar el nombre)
+  const LISTA_HEADERS = ['### LISTA DEL SÚPER', '### Lista del Súper', '## LISTA DEL SÚPER',
+    '### LISTA DE SUPER', '### Lista de Super', 'LISTA DEL SÚPER', 'Lista del Súper']
+  const PLAN_HEADERS = ['## PLAN NUTRICIONAL', '# PLAN NUTRICIONAL', 'PLAN NUTRICIONAL']
+
+  // Busca la primera sección que exista
+  const encontrarSeccion = (texto: string, posibles: string[]) =>
+    posibles.find(h => extraerSeccion(texto, h) !== '') || ''
+
+  const listaHeader = planActual ? encontrarSeccion(planActual, LISTA_HEADERS) : ''
+  const planHeader  = planActual ? encontrarSeccion(planActual, PLAN_HEADERS)  : ''
+
+  const planSeccion = planActual
+    ? (listaHeader
+        ? extraerSeccion(planActual, planHeader || '', listaHeader) || extraerSeccion(planActual, planHeader || '') || planActual
+        : planHeader
+          ? extraerSeccion(planActual, planHeader) || planActual
+          : planActual)
+    : ''
+  const listaSuper = planActual && listaHeader ? extraerSeccion(planActual, listaHeader) : ''
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #1a0508 0%, #2d0f0a 60%, #1a0505 100%)', fontFamily: "'Lato', sans-serif" }}>
