@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { exec } from 'child_process'
-import { writeFile, readFile, unlink } from 'fs/promises'
-import { tmpdir } from 'os'
-import path from 'path'
-import { promisify } from 'util'
-
-const execAsync = promisify(exec)
+import { generarMenuExcelXML } from '@/lib/generar-menu-excel'
 
 const DIAS_ES = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
 // variantes con/sin tildes que Claude puede generar
@@ -71,9 +65,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-  let tempJson = ''
-  let tempXlsx = ''
+  const { id: _id } = await params
 
   try {
     const { paciente, planTexto, historia } = await req.json()
@@ -89,7 +81,6 @@ export async function POST(
     // usar el contenido general del plan para todos los días con nota
     const diasEncontrados = Object.keys(menuDias).length
     if (diasEncontrados < 5) {
-      // Extraer sección general del plan para mostrar como fallback
       const seccionGeneral = planTexto
         .replace(/### LISTA DEL SÚPER[\s\S]*/i, '')
         .replace(/### RECOMENDACIONES[\s\S]*/i, '')
@@ -114,38 +105,27 @@ export async function POST(
       }
     }
 
-    // ── Llamar script Python ────────────────────────────────────────────────
-    const ts = Date.now()
-    tempJson = path.join(tmpdir(), `menu_${id}_${ts}.json`)
-    tempXlsx = path.join(tmpdir(), `menu_${id}_${ts}.xlsx`)
-
-    const payload = {
+    // ── Generar Excel XML (SpreadsheetML) — sin Python, funciona en Vercel ──
+    const xmlContent = generarMenuExcelXML({
       paciente,
       historia,
       menu: menuDias,
-    }
+    })
 
-    await writeFile(tempJson, JSON.stringify(payload, null, 2), 'utf-8')
+    const nombre = ((paciente?.nombre as string) || 'Paciente')
+      .replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9 ]/g, '')
+      .trim()
 
-    const scriptPath = path.join(process.cwd(), 'scripts', 'generar_menu_plan.py')
-    await execAsync(`python3 "${scriptPath}" "${tempJson}" "${tempXlsx}"`)
-
-    const xlsxBuffer = await readFile(tempXlsx)
-    const nombre = (paciente?.nombre as string || 'Paciente').replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9 ]/g, '').trim()
-
-    return new NextResponse(xlsxBuffer, {
+    return new NextResponse(xmlContent, {
       status: 200,
       headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="Menu_Semanal_${nombre}.xlsx"`,
-        'Content-Length': xlsxBuffer.length.toString(),
+        'Content-Type': 'application/vnd.ms-excel',
+        'Content-Disposition': `attachment; filename="Menu_Semanal_${nombre}.xls"`,
+        'Content-Length': Buffer.byteLength(xmlContent, 'utf-8').toString(),
       },
     })
   } catch (err) {
     console.error('[menu]', err)
     return NextResponse.json({ error: 'Error al generar el menú', detalle: String(err) }, { status: 500 })
-  } finally {
-    if (tempJson) await unlink(tempJson).catch(() => {})
-    if (tempXlsx) await unlink(tempXlsx).catch(() => {})
   }
 }
