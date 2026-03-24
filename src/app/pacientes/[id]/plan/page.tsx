@@ -21,9 +21,12 @@ export default function PlanPage() {
   const chatRef = useRef<HTMLDivElement>(null)
   const planPdfRef = useRef<HTMLDivElement>(null)
   const [descargando, setDescargando] = useState(false)
+  const [descargandoMenu, setDescargandoMenu] = useState(false)
+  const [errorMenu, setErrorMenu] = useState('')
 
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [planes, setPlanes] = useState<Plan[]>([])
+  const [historia, setHistoria] = useState<Record<string, unknown> | null>(null)
   const [cargando, setCargando] = useState(true)
   const [generando, setGenerando] = useState(false)
   const [planActual, setPlanActual] = useState('')
@@ -39,7 +42,7 @@ export default function PlanPage() {
       try {
         const p = await obtenerPaciente(id)
         setPaciente(p)
-        await cargarPlanes()
+        await Promise.all([cargarPlanes(), cargarHistoria()])
       } catch (e) { console.error(e) }
       finally { setCargando(false) }
     })
@@ -56,6 +59,46 @@ export default function PlanPage() {
     const lista = snap.docs.map(d => ({ id: d.id, ...d.data() } as Plan))
     setPlanes(lista)
     if (lista.length > 0) setPlanActual(lista[0].texto)
+  }
+
+  const cargarHistoria = async () => {
+    try {
+      const q = query(collection(db, `pacientes/${id}/historiasClinicas`), orderBy('fechaCreacion', 'desc'))
+      const snap = await getDocs(q)
+      if (!snap.empty) setHistoria(snap.docs[0].data() as Record<string, unknown>)
+    } catch { /* sin historia */ }
+  }
+
+  const descargarMenuExcel = async () => {
+    if (!paciente || !planActual) return
+    setDescargandoMenu(true)
+    setErrorMenu('')
+    try {
+      const res = await fetch(`/api/menu/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paciente, planTexto: planActual, historia }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setErrorMenu(err.error || 'Error al generar el menú')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Menu_Semanal_${paciente.nombre}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setErrorMenu('Error de conexión')
+      console.error(e)
+    } finally {
+      setDescargandoMenu(false)
+    }
   }
 
   const generarPlan = async () => {
@@ -422,7 +465,33 @@ export default function PlanPage() {
                     </div>
 
                     {/* ── BOTONES (se ocultan en PDF e impresión) ── */}
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+
+                      {/* Botón Menú Semanal Excel */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                        <button
+                          onClick={descargarMenuExcel}
+                          disabled={descargandoMenu || !planActual}
+                          style={{
+                            padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                            border: 'none',
+                            background: descargandoMenu ? '#C9E8D0' : 'linear-gradient(135deg, #2D6A4F, #40916C)',
+                            color: descargandoMenu ? '#2D6A4F' : 'white',
+                            cursor: (descargandoMenu || !planActual) ? 'not-allowed' : 'pointer',
+                            fontFamily: "'Lato', sans-serif",
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            opacity: !planActual ? 0.5 : 1,
+                          }}
+                        >
+                          {descargandoMenu
+                            ? <><div style={{ width: '12px', height: '12px', border: '2px solid #2D6A4F', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Generando menú...</>
+                            : '📊 Menú Semanal Excel'}
+                        </button>
+                        {errorMenu && (
+                          <span style={{ fontSize: '11px', color: '#B71C1C' }}>⚠️ {errorMenu}</span>
+                        )}
+                      </div>
+
                       <button
                         onClick={descargarPDF}
                         disabled={descargando}
