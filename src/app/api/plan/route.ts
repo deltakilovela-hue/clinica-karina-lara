@@ -7,16 +7,16 @@ export async function POST(req: NextRequest) {
     const esModoChat = !!mensajeChat && !!planPrevio
 
     const prompt = esModoChat
-      ? `Eres una nutrióloga clínica especializada en nutrición pediátrica. Tienes el siguiente plan nutricional generado previamente:
+      ? `Eres una nutrióloga clínica especializada en nutrición pediátrica. Tienes el siguiente plan nutricional semanal generado previamente:
 
 ${planPrevio}
 
 El usuario quiere hacer el siguiente cambio o tiene la siguiente pregunta:
 "${mensajeChat}"
 
-Responde de forma profesional y si aplica, genera el plan nutricional completo actualizado con los mismos secciones (PLAN NUTRICIONAL, DESAYUNO, COLACIÓN MATUTINA, COMIDA, COLACIÓN VESPERTINA, CENA, RECOMENDACIONES PARA PADRES, ALIMENTOS A EVITAR, LISTA DEL SÚPER, PRESUPUESTO ESTIMADO). Si solo es una pregunta, respóndela sin regenerar el plan completo.`
+Responde de forma profesional. Si aplica, regenera el plan semanal COMPLETO (los 7 días) manteniendo el mismo formato exacto con secciones ### LUNES, ### MARTES ... ### DOMINGO, y al final: ### RECOMENDACIONES PARA PADRES, ### ALIMENTOS A EVITAR, ### LISTA DEL SÚPER, ### PRESUPUESTO ESTIMADO. Si solo es una pregunta puntual, respóndela sin regenerar el plan completo.`
 
-      : `Eres una nutrióloga clínica especializada en nutrición pediátrica, neurodesarrollo y salud intestinal infantil. Tu tarea es generar un plan nutricional personalizado y detallado.
+      : `Eres una nutrióloga clínica especializada en nutrición pediátrica, neurodesarrollo y salud intestinal infantil. Genera un MENÚ SEMANAL COMPLETO personalizado de 7 días para el paciente.
 
 DATOS DEL PACIENTE:
 - Nombre: ${paciente.nombre}
@@ -28,7 +28,7 @@ ${historia ? `HISTORIA CLÍNICA:
 - Diagnósticos previos: ${historia.diagnosticosPrevios || 'No registrado'}
 - Alergias: ${historia.alergias || 'Ninguna'}
 - Intolerancias: ${historia.intolerancias || 'Ninguna'}
-- Síntomas GI activos: ${historia.sintomasGI?.join(', ') || 'Ninguno'}
+- Síntomas GI activos: ${Array.isArray(historia.sintomasGI) ? historia.sintomasGI.join(', ') : historia.sintomasGI || 'Ninguno'}
 - Alimentos favoritos: ${historia.alimentosFavoritos || 'No registrado'}
 - Alimentos rechazados: ${historia.alimentosRechazados || 'No registrado'}
 - Texturas aceptadas: ${historia.texturasAceptadas || 'No registrado'}
@@ -37,49 +37,85 @@ ${historia ? `HISTORIA CLÍNICA:
 - Presupuesto familiar: ${historia.presupuestoAlimentario || 'No especificado'}` : ''}
 
 ${antropometria ? `DATOS ANTROPOMÉTRICOS:
-- Peso: ${antropometria.peso} kg
-- Talla: ${antropometria.talla} cm
-- IMC: ${antropometria.imc} kg/m²
+- Peso: ${antropometria.peso} kg | Talla: ${antropometria.talla} cm | IMC: ${antropometria.imc} kg/m²
 - Percentil peso/edad: P${antropometria.percentilPeso} (${antropometria.interpretacionPeso})
 - Percentil talla/edad: P${antropometria.percentilTalla} (${antropometria.interpretacionTalla})` : ''}
 
-Genera un plan nutricional completo con el siguiente formato EXACTO:
+Genera el plan con el siguiente formato EXACTO. Es OBLIGATORIO incluir los 7 días con los 5 tiempos de comida cada uno, con alimentos mexicanos reales, porciones en medidas caseras y variedad entre días.
 
 ## PLAN NUTRICIONAL — ${paciente.nombre}
 
 ### OBJETIVOS DEL TRATAMIENTO
-[Lista 3-4 objetivos específicos basados en los datos del paciente]
+- [Objetivo 1 específico]
+- [Objetivo 2]
+- [Objetivo 3]
+- [Objetivo 4]
 
-### DESAYUNO
-**Alimentos:** [Lista con porciones en medidas caseras mexicanas]
-**Preparación sugerida:** [Indicaciones breves]
+---
 
-### COLACIÓN MATUTINA
-**Alimentos:** [Lista con porciones]
+## MENÚ SEMANAL
 
-### COMIDA
-**Alimentos:** [Lista con porciones en medidas caseras mexicanas]
-**Preparación sugerida:** [Indicaciones breves]
+### LUNES
+**Desayuno:** [alimentos con porciones — usa medidas caseras: tazas, piezas, cdas. Ej: 2 huevos revueltos | 1 tortilla de maíz | ½ tz papaya | Agua natural]
+**Colación AM:** [alimento — 1-2 ítems concretos]
+**Comida:** [plato principal con guarniciones | líquido — Ej: Caldo de pollo con chayote | ½ tz arroz | 2 tortillas | Agua de jamaica]
+**Colación PM:** [alimento — 1-2 ítems concretos]
+**Cena:** [alimentos — Ej: 2 quesadillas de queso | Jitomate | Vaso de leche tibia]
 
-### COLACIÓN VESPERTINA
-**Alimentos:** [Lista con porciones]
+### MARTES
+**Desayuno:** [diferente al lunes]
+**Colación AM:** [diferente]
+**Comida:** [diferente]
+**Colación PM:** [diferente]
+**Cena:** [diferente]
 
-### CENA
-**Alimentos:** [Lista con porciones en medidas caseras mexicanas]
-**Preparación sugerida:** [Indicaciones breves]
+### MIÉRCOLES
+**Desayuno:** [...]
+**Colación AM:** [...]
+**Comida:** [...]
+**Colación PM:** [...]
+**Cena:** [...]
+
+### JUEVES
+**Desayuno:** [...]
+**Colación AM:** [...]
+**Comida:** [...]
+**Colación PM:** [...]
+**Cena:** [...]
+
+### VIERNES
+**Desayuno:** [...]
+**Colación AM:** [...]
+**Comida:** [...]
+**Colación PM:** [...]
+**Cena:** [...]
+
+### SÁBADO
+**Desayuno:** [...]
+**Colación AM:** [...]
+**Comida:** [...]
+**Colación PM:** [...]
+**Cena:** [...]
+
+### DOMINGO
+**Desayuno:** [...]
+**Colación AM:** [...]
+**Comida:** [...]
+**Colación PM:** [...]
+**Cena:** [...]
+
+---
 
 ### RECOMENDACIONES PARA PADRES
-[5-7 recomendaciones específicas y prácticas basadas en el caso]
+[5-7 recomendaciones específicas y prácticas]
 
-${historia?.diagnosticosPrevios?.toLowerCase().includes('tea') || historia?.diagnosticosPrevios?.toLowerCase().includes('autis') || historia?.diagnosticosPrevios?.toLowerCase().includes('epilep') ? `### CONSIDERACIONES ESPECIALES
-[Recomendaciones específicas para el diagnóstico neurológico del paciente]` : ''}
+${historia?.diagnosticosPrevios?.toLowerCase().includes('tea') || historia?.diagnosticosPrevios?.toLowerCase().includes('autis') || historia?.diagnosticosPrevios?.toLowerCase().includes('epilep') || historia?.diagnosticosPrevios?.toLowerCase().includes('tdah') ? `### CONSIDERACIONES ESPECIALES
+[Recomendaciones específicas para el diagnóstico neurológico]` : ''}
 
 ### ALIMENTOS A EVITAR
-[Lista con justificación clínica]
+[Lista con justificación clínica breve]
 
 ### LISTA DEL SÚPER
-[Genera una lista de compras completa y organizada por categorías con las cantidades necesarias para UNA SEMANA. Formato:]
-
 **🥩 Proteínas:**
 - [alimento] — [cantidad para 1 semana]
 
@@ -92,14 +128,13 @@ ${historia?.diagnosticosPrevios?.toLowerCase().includes('tea') || historia?.diag
 **🥛 Lácteos:**
 - [alimento] — [cantidad para 1 semana]
 
-**🫙 Despensa (aceites, condimentos, otros):**
+**🫙 Despensa:**
 - [alimento] — [cantidad para 1 semana]
 
 ### PRESUPUESTO ESTIMADO
-[Genera una tabla de presupuesto con precios de referencia para Tepic, Nayarit (Walmart/Soriana/Chedraui 2025). Formato:]
 
-| Categoría | Productos | Costo estimado/semana |
-|-----------|-----------|----------------------|
+| Categoría | Productos principales | Costo estimado/semana |
+|-----------|----------------------|----------------------|
 | Proteínas | [lista] | $[monto] |
 | Verduras y frutas | [lista] | $[monto] |
 | Cereales | [lista] | $[monto] |
@@ -108,9 +143,14 @@ ${historia?.diagnosticosPrevios?.toLowerCase().includes('tea') || historia?.diag
 | **TOTAL SEMANAL** | | **$[total]** |
 | **TOTAL MENSUAL** | | **$[total x4]** |
 
-Nota: Precios de referencia aproximados para supermercados en Tepic, Nayarit. Pueden variar según temporada y tienda.
+Precios de referencia aproximados para Tepic, Nayarit (Walmart/Soriana/Chedraui 2025).
 
-Usa alimentos mexicanos comunes y asequibles. Sé específico con las porciones usando medidas caseras (tazas, cucharadas, piezas). El plan debe ser realista para una familia mexicana de Tepic, Nayarit.`
+REGLAS IMPORTANTES:
+- Los 7 días DEBEN tener comidas DIFERENTES con variedad real (no repetir el mismo desayuno cada día)
+- Respetar TODAS las alergias e intolerancias listadas
+- Usar alimentos mexicanos asequibles para Tepic, Nayarit
+- Adaptar texturas si hay selectividad
+- Porciones apropiadas para la edad y peso del paciente`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -121,7 +161,7 @@ Usa alimentos mexicanos comunes y asequibles. Sé específico con las porciones 
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 6000,
+        max_tokens: 8000,
         messages: [{ role: 'user', content: prompt }],
       }),
     })

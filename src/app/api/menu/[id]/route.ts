@@ -7,6 +7,66 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+const DIAS_ES = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
+// variantes con/sin tildes que Claude puede generar
+const DIAS_VARIANTES: Record<string, string> = {
+  'MIERCOLES': 'MIÉRCOLES',
+  'SABADO':    'SÁBADO',
+  'MIÉRCOLES': 'MIÉRCOLES',
+  'SÁBADO':    'SÁBADO',
+}
+
+function normalizarDia(d: string): string {
+  const up = d.toUpperCase().trim()
+  return DIAS_VARIANTES[up] || up
+}
+
+/**
+ * Extrae las comidas de cada día del texto del plan.
+ * Espera secciones con el formato:
+ *   ### LUNES
+ *   **Desayuno:** contenido
+ *   **Colación AM:** contenido
+ *   ...
+ */
+function parsearPlan(planTexto: string): Record<string, Record<string, string>> {
+  const resultado: Record<string, Record<string, string>> = {}
+
+  // Dividir el texto por secciones de día (### LUNES, ### MARTES, etc.)
+  // Capturamos cualquier ### seguido de uno de los días de la semana
+  const patronDias = DIAS_ES.map(d => d.replace('É', '[EÉ]').replace('Á', '[AÁ]')).join('|')
+  const regexSeccion = new RegExp(
+    `###\\s+(${patronDias})\\s*\\n([\\s\\S]*?)(?=###\\s+(?:${patronDias})|###\\s+RECOMENDAC|###\\s+ALIMENTO|###\\s+LISTA|###\\s+PRESUPUESTO|---\\s*$|$)`,
+    'gi'
+  )
+
+  let match
+  while ((match = regexSeccion.exec(planTexto)) !== null) {
+    const dia = normalizarDia(match[1])
+    const bloque = match[2]
+
+    // Extraer cada tiempo de comida del bloque del día
+    const extraer = (patrones: string[]): string => {
+      for (const patron of patrones) {
+        const re = new RegExp(`\\*\\*${patron}[^*]*\\*\\*:?\\s*(.+?)(?=\\n\\*\\*|\\n###|$)`, 'si')
+        const m = bloque.match(re)
+        if (m) return m[1].trim().replace(/\n/g, '\n')
+      }
+      return '—'
+    }
+
+    resultado[dia] = {
+      desayuno:    extraer(['Desayuno']),
+      colacion_am: extraer(['Colaci[oó]n AM', 'Colaci[oó]n Matutina', 'Colaci[oó]n de la ma']),
+      comida:      extraer(['Comida']),
+      colacion_pm: extraer(['Colaci[oó]n PM', 'Colaci[oó]n Vespertina', 'Colaci[oó]n de la tarde']),
+      cena:        extraer(['Cena']),
+    }
+  }
+
+  return resultado
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -18,83 +78,51 @@ export async function POST(
   try {
     const { paciente, planTexto, historia } = await req.json()
 
-    // ── 1. Pedir a Claude que estructure el plan en 7 días ──────────────────
-    const alergias   = historia?.alergias    || 'Ninguna'
-    const intoler    = historia?.intolerancias || 'Ninguna'
-    const rechazados = historia?.alimentosRechazados || 'Ninguno'
-    const presupuesto= historia?.presupuestoAlimentario || 'No especificado'
-
-    const promptEstructura = `Eres una nutrióloga pediátrica. Basándote en el siguiente plan nutricional, genera un menú semanal para 7 días (Lunes a Domingo) con variedad en cada día.
-
-PLAN DE REFERENCIA:
-${planTexto?.slice(0, 3000) || 'Plan no disponible'}
-
-RESTRICCIONES DEL PACIENTE:
-- Alergias: ${alergias}
-- Intolerancias: ${intoler}
-- Alimentos rechazados: ${rechazados}
-- Presupuesto: ${presupuesto}
-
-Devuelve ÚNICAMENTE un JSON válido con esta estructura exacta (sin texto extra, sin markdown, solo el JSON):
-{
-  "dias": {
-    "LUNES":     { "desayuno": "...", "colacion_am": "...", "comida": "...", "colacion_pm": "...", "cena": "..." },
-    "MARTES":    { "desayuno": "...", "colacion_am": "...", "comida": "...", "colacion_pm": "...", "cena": "..." },
-    "MIÉRCOLES": { "desayuno": "...", "colacion_am": "...", "comida": "...", "colacion_pm": "...", "cena": "..." },
-    "JUEVES":    { "desayuno": "...", "colacion_am": "...", "comida": "...", "colacion_pm": "...", "cena": "..." },
-    "VIERNES":   { "desayuno": "...", "colacion_am": "...", "comida": "...", "colacion_pm": "...", "cena": "..." },
-    "SÁBADO":    { "desayuno": "...", "colacion_am": "...", "comida": "...", "colacion_pm": "...", "cena": "..." },
-    "DOMINGO":   { "desayuno": "...", "colacion_am": "...", "comida": "...", "colacion_pm": "...", "cena": "..." }
-  }
-}
-
-Reglas:
-- Cada campo debe tener máximo 3-4 líneas de texto con alimentos reales mexicanos y porciones caseras.
-- Varía los alimentos entre días pero mantén el patrón nutricional del plan de referencia.
-- Usa emojis al inicio de cada línea (🥣 🍳 🫘 🥦 🐟 🍗 etc).
-- Si el plan dice evitar algún alimento, NO lo incluyas.
-- Formato de cada campo: una línea por alimento/grupo, sin salto extra.`
-
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: promptEstructura }],
-      }),
-    })
-
-    if (!claudeRes.ok) {
-      const err = await claudeRes.text()
-      return NextResponse.json({ error: 'Error al estructurar el menú', detalle: err }, { status: 500 })
+    if (!planTexto) {
+      return NextResponse.json({ error: 'No hay plan generado. Genera un plan primero.' }, { status: 400 })
     }
 
-    const claudeData = await claudeRes.json()
-    let menuJson: { dias: Record<string, Record<string, string>> }
+    // ── Parsear el plan directamente ────────────────────────────────────────
+    let menuDias = parsearPlan(planTexto)
 
-    try {
-      const rawText = claudeData.content[0].text.trim()
-      // Extraer JSON aunque Claude lo envuelva en ```json ... ```
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('No se encontró JSON en la respuesta')
-      menuJson = JSON.parse(jsonMatch[0])
-    } catch (e) {
-      return NextResponse.json({ error: 'El modelo no devolvió JSON válido', detalle: String(e) }, { status: 500 })
+    // Si no se encontraron suficientes días (plan viejo con formato anterior),
+    // usar el contenido general del plan para todos los días con nota
+    const diasEncontrados = Object.keys(menuDias).length
+    if (diasEncontrados < 5) {
+      // Extraer sección general del plan para mostrar como fallback
+      const seccionGeneral = planTexto
+        .replace(/### LISTA DEL SÚPER[\s\S]*/i, '')
+        .replace(/### RECOMENDACIONES[\s\S]*/i, '')
+        .replace(/## PLAN NUTRICIONAL[^\n]*/i, '')
+        .trim()
+        .slice(0, 600)
+
+      const nota = diasEncontrados === 0
+        ? `⚠️ Este plan fue generado con el formato anterior.\n\n${seccionGeneral}`
+        : `Parcial: solo se encontraron ${diasEncontrados} días.`
+
+      for (const dia of DIAS_ES) {
+        if (!menuDias[dia]) {
+          menuDias[dia] = {
+            desayuno: nota,
+            colacion_am: '—',
+            comida: '—',
+            colacion_pm: '—',
+            cena: '—',
+          }
+        }
+      }
     }
 
-    // ── 2. Llamar al script Python con los datos ──────────────────────────
+    // ── Llamar script Python ────────────────────────────────────────────────
     const ts = Date.now()
     tempJson = path.join(tmpdir(), `menu_${id}_${ts}.json`)
     tempXlsx = path.join(tmpdir(), `menu_${id}_${ts}.xlsx`)
 
     const payload = {
       paciente,
-      menu: menuJson.dias,
+      historia,
+      menu: menuDias,
     }
 
     await writeFile(tempJson, JSON.stringify(payload, null, 2), 'utf-8')
