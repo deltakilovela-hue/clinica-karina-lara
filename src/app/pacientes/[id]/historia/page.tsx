@@ -25,6 +25,7 @@ interface HistoriaClinica {
   intolerancias: string
   diagnosticosPrevios: string
   sintomasGI: string[]
+  sintomasGIOtros: string
   conductaAlimentaria: string
   texturasAceptadas: string
   texturasRechazadas: string
@@ -44,7 +45,11 @@ interface HistoriaClinica {
 
 const SINTOMAS_GI = [
   'Estreñimiento', 'Diarrea', 'Reflujo', 'Distensión abdominal',
-  'Dolor abdominal', 'Gases', 'Náuseas', 'Vómitos', 'Sangre en heces'
+  'Dolor abdominal', 'Gases', 'Náuseas', 'Vómitos', 'Sangre en heces',
+  'Flatulencia excesiva', 'Colitis', 'Pirosis / Acidez', 'Regurgitación',
+  'Hipo frecuente', 'Pérdida de apetito', 'Heces con moco',
+  'Urgencia defecatoria', 'Indigestión', 'Borborigmos (ruidos intestinales)',
+  'Disfagia (dificultad para tragar)', 'Síndrome de intestino irritable',
 ]
 
 export default function HistoriaClinicaPage() {
@@ -60,12 +65,14 @@ export default function HistoriaClinicaPage() {
   const [step, setStep] = useState<Step>(1)
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+  const [mostrarConfirmHome, setMostrarConfirmHome] = useState(false)
 
   const [form, setForm] = useState<Omit<HistoriaClinica, 'id' | 'fechaCreacion'>>({
     fechaConsulta: new Date().toISOString().split('T')[0],
     antecedentesperinatales: '', semanasGestacion: '', pesoNacer: '',
     tipoNacimiento: '', medicamentosActuales: '', alergias: '',
     intolerancias: '', diagnosticosPrevios: '', sintomasGI: [],
+    sintomasGIOtros: '',
     conductaAlimentaria: '', texturasAceptadas: '', texturasRechazadas: '',
     alimentosFavoritos: '', alimentosRechazados: '', horasSueno: '',
     actividadFisica: '', horariasComida: '', quienCocina: '',
@@ -136,10 +143,25 @@ export default function HistoriaClinicaPage() {
     <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
+      {/* Modal confirmación salir */}
+      {mostrarConfirmHome && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,24,16,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: '20px', padding: '36px 32px', maxWidth: '400px', width: '90%', boxShadow: '0 8px 40px rgba(44,24,16,0.18)', textAlign: 'center' }}>
+            <p style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</p>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '10px' }}>¿Salir sin guardar?</h3>
+            <p style={{ fontSize: '14px', color: '#9B7B65', marginBottom: '28px', lineHeight: '1.6' }}>Si sales ahora, <strong>perderás los cambios</strong> que no hayas guardado.</p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setMostrarConfirmHome(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Quedarme</button>
+              <button onClick={() => router.push('/dashboard')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Salir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-            <Link href="/dashboard" style={{ color: '#9B7B65', textDecoration: 'none' }}>Dashboard</Link>
+            <button onClick={() => mostrarForm ? setMostrarConfirmHome(true) : router.push('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '4px 6px', borderRadius: '8px', lineHeight: 1 }} title="Inicio">🏠</button>
             <span style={{ color: '#C9B8A8' }}>/</span>
             <Link href="/pacientes" style={{ color: '#9B7B65', textDecoration: 'none' }}>Pacientes</Link>
             <span style={{ color: '#C9B8A8' }}>/</span>
@@ -248,16 +270,21 @@ export default function HistoriaClinicaPage() {
                   </div>
                 </div>
                 {secTitle('Síntomas Gastrointestinales')}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
                   {SINTOMAS_GI.map(s => (
-  <button key={s} type="button" onClick={() => toggleSintoma(s)} style={{
-    padding: '8px 16px', borderRadius: '20px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
-    background: form.sintomasGI.includes(s) ? '#F5E8EB' : '#FAF7F2',
-    color: form.sintomasGI.includes(s) ? '#7B1B2A' : '#6B4F3A',
-    border: form.sintomasGI.includes(s) ? '1.5px solid #A63244' : '1.5px solid #E8DDD0',
-    fontWeight: form.sintomasGI.includes(s) ? '700' : '400'
-  }}>{form.sintomasGI.includes(s) ? '✓ ' : ''}{s}</button>
-))}
+                    <button key={s} type="button" onClick={() => toggleSintoma(s)} style={{
+                      padding: '8px 16px', borderRadius: '20px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+                      background: form.sintomasGI.includes(s) ? '#F5E8EB' : '#FAF7F2',
+                      color: form.sintomasGI.includes(s) ? '#7B1B2A' : '#6B4F3A',
+                      border: form.sintomasGI.includes(s) ? '1.5px solid #A63244' : '1.5px solid #E8DDD0',
+                      fontWeight: form.sintomasGI.includes(s) ? '700' : '400'
+                    }}>{form.sintomasGI.includes(s) ? '✓ ' : ''}{s}</button>
+                  ))}
+                </div>
+                {/* Campo Otros */}
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={lS}>Otros síntomas gastrointestinales</label>
+                  <textarea style={{ ...taS, minHeight: '70px' }} placeholder="Describe otros síntomas no listados arriba..." value={form.sintomasGIOtros} onChange={e => set('sintomasGIOtros', e.target.value)} />
                 </div>
                 <div style={{ marginBottom: '18px' }}>
                   <label style={lS}>Horas de sueño</label>
@@ -389,11 +416,14 @@ export default function HistoriaClinicaPage() {
                       {new Date(h.fechaConsulta + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                   </div>
-                  {h.sintomasGI.length > 0 && (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', maxWidth: '400px', justifyContent: 'flex-end' }}>
+                  {(h.sintomasGI.length > 0 || h.sintomasGIOtros) && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', maxWidth: '420px', justifyContent: 'flex-end', alignItems: 'center' }}>
                       {h.sintomasGI.map(s => (
                         <span key={s} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#F5E8EB', color: '#7B1B2A', fontWeight: '600' }}>{s}</span>
                       ))}
+                      {h.sintomasGIOtros && (
+                        <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#FFF3E0', color: '#C4831A', fontWeight: '600' }}>Otros: {h.sintomasGIOtros}</span>
+                      )}
                     </div>
                   )}
                 </div>

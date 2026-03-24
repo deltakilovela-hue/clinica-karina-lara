@@ -38,6 +38,8 @@ export default function AntropometriaPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+  const [mostrarConfirmHome, setMostrarConfirmHome] = useState(false)
+  const [mostrarInfoCalculo, setMostrarInfoCalculo] = useState(false)
 
   const [form, setForm] = useState({
     fecha: new Date().toISOString().split('T')[0],
@@ -124,12 +126,53 @@ export default function AntropometriaPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } } @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {/* Modal confirmación salir */}
+      {mostrarConfirmHome && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,24,16,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: '20px', padding: '36px 32px', maxWidth: '400px', width: '90%', boxShadow: '0 8px 40px rgba(44,24,16,0.18)', textAlign: 'center' }}>
+            <p style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</p>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '10px' }}>¿Salir sin guardar?</h3>
+            <p style={{ fontSize: '14px', color: '#9B7B65', marginBottom: '28px', lineHeight: '1.6' }}>Si sales ahora, <strong>perderás los cambios</strong> que no hayas guardado.</p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setMostrarConfirmHome(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Quedarme</button>
+              <button onClick={() => router.push('/dashboard')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Salir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel info cálculo */}
+      {mostrarInfoCalculo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,24,16,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: '20px', padding: '36px 32px', maxWidth: '520px', width: '90%', boxShadow: '0 8px 40px rgba(44,24,16,0.18)', animation: 'fadeIn 0.25s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810' }}>📐 ¿Cómo se calculan los valores?</h3>
+              <button onClick={() => setMostrarInfoCalculo(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#9B7B65', padding: '4px' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {[
+                { icon: '⚖️', titulo: 'IMC — Índice de Masa Corporal', formula: 'IMC = Peso (kg) ÷ Talla² (m)', desc: 'Relaciona el peso con la estatura para estimar si el estado ponderal es adecuado. Se calcula dividiendo el peso en kilogramos entre la talla en metros elevada al cuadrado.' },
+                { icon: '📊', titulo: 'Percentil Peso/Edad', formula: 'Tablas OMS según sexo y edad en meses', desc: 'Indica la posición del peso del niño respecto a otros niños de la misma edad y sexo. Un P50 es el promedio. P<3 indica bajo peso, P>97 indica sobrepeso.' },
+                { icon: '📏', titulo: 'Percentil Talla/Edad', formula: 'Tablas OMS según sexo y edad en meses', desc: 'Compara la estatura del niño con la de su grupo de referencia. Permite detectar talla baja (P<3) o talla alta (P>97). Refleja el crecimiento a largo plazo.' },
+              ].map(item => (
+                <div key={item.titulo} style={{ background: '#FAF7F2', borderRadius: '12px', padding: '16px', border: '1px solid #E8DDD0' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '700', color: '#2C1810', marginBottom: '4px' }}>{item.icon} {item.titulo}</p>
+                  <p style={{ fontSize: '12px', color: '#7B1B2A', fontWeight: '600', marginBottom: '6px', fontFamily: 'monospace' }}>{item.formula}</p>
+                  <p style={{ fontSize: '13px', color: '#6B4F3A', lineHeight: '1.6' }}>{item.desc}</p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setMostrarInfoCalculo(false)} style={{ width: '100%', marginTop: '20px', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Entendido</button>
+          </div>
+        </div>
+      )}
 
       <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-            <Link href="/dashboard" style={{ color: '#9B7B65', textDecoration: 'none' }}>Dashboard</Link>
+            <button onClick={() => mostrarForm ? setMostrarConfirmHome(true) : router.push('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '4px 6px', borderRadius: '8px', lineHeight: 1 }} title="Inicio">🏠</button>
             <span style={{ color: '#C9B8A8' }}>/</span>
             <Link href="/pacientes" style={{ color: '#9B7B65', textDecoration: 'none' }}>Pacientes</Link>
             <span style={{ color: '#C9B8A8' }}>/</span>
@@ -137,12 +180,19 @@ export default function AntropometriaPage() {
             <span style={{ color: '#C9B8A8' }}>/</span>
             <span style={{ color: '#2C1810', fontWeight: '600' }}>Antropometría</span>
           </div>
-          <button onClick={() => { setMostrarForm(true); setError('') }} style={{
-            padding: '9px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
-            background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white',
-            border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
-            boxShadow: '0 2px 8px rgba(123,27,42,0.25)'
-          }}>+ Nueva Medición</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setMostrarInfoCalculo(true)} style={{
+              padding: '9px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
+              background: '#FAF7F2', color: '#7B1B2A', border: '1.5px solid #E8DDD0',
+              cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+            }}>ℹ️ ¿Cómo se calcula?</button>
+            <button onClick={() => { setMostrarForm(true); setError('') }} style={{
+              padding: '9px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
+              background: 'linear-gradient(135deg, #7B1B2A, #A63244)', color: 'white',
+              border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+              boxShadow: '0 2px 8px rgba(123,27,42,0.25)'
+            }}>+ Nueva Medición</button>
+          </div>
         </div>
       </header>
 
@@ -195,9 +245,12 @@ export default function AntropometriaPage() {
             {/* Preview en tiempo real */}
             {preview && (
               <div style={{ background: '#FAF7F2', borderRadius: '14px', padding: '20px', border: '1px solid #E8DDD0', marginBottom: '20px' }}>
-                <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914', marginBottom: '16px' }}>
-                  Cálculo Automático
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914' }}>
+                    Cálculo Automático · Tablas OMS
+                  </p>
+                  <button onClick={() => setMostrarInfoCalculo(true)} type="button" style={{ background: 'none', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '3px 10px', fontSize: '12px', color: '#9B7B65', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>ℹ️ ¿Qué mide?</button>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                   {[
                     { label: 'IMC', valor: `${preview.imc} kg/m²`, sub: preview.imc < 18.5 ? 'Bajo peso' : preview.imc < 25 ? 'Normal' : 'Sobrepeso', color: preview.imc >= 18.5 && preview.imc < 25 ? '#2D6A4F' : '#C4831A' },
