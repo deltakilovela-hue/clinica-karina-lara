@@ -493,69 +493,198 @@ export default function PortalPage() {
                   <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '18px', color: '#2C1810', marginBottom: '8px' }}>Lista no disponible</p>
                   <p style={{ color: '#9B7B65', fontSize: '14px' }}>El plan aún no incluye lista de compras</p>
                 </div>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <div>
-                      <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '16px', fontWeight: '600', color: '#2C1810' }}>Lista del Súper</p>
-                      <p style={{ fontSize: '12px', color: '#9B7B65' }}>Ingredientes para el plan de esta semana</p>
-                    </div>
-                    {fechaPlan && <span className="badge badge-gold" style={{ background: '#FDF6E3', color: '#8B6914' }}>{fechaPlan}</span>}
-                  </div>
+              ) : (() => {
+                  // Todos los items de todas las categorías (solo los simples, no tablas)
+                  const todosItems = listaCategorias.flatMap(c =>
+                    c.rawLines.some(r => r.trim().startsWith('|')) ? [] : c.items
+                  )
+                  const textoWhatsApp = encodeURIComponent(
+                    `🛒 *Lista del Súper — ${paciente?.nombre}*\n_Plan nutricional ${fechaPlan}_\n\n` +
+                    listaCategorias
+                      .filter(c => !c.rawLines.some(r => r.trim().startsWith('|')))
+                      .map(c => `*${c.titulo}*\n${c.items.map(i => `• ${i}`).join('\n')}`)
+                      .join('\n\n')
+                  )
 
-                  {listaCategorias.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {listaCategorias.map((cat, ci) => (
-                        <div key={ci} className="card" style={{ padding: '0', overflow: 'hidden' }}>
-                          {/* Header categoría */}
-                          <div style={{
-                            padding: '12px 20px',
-                            background: ci % 2 === 0 ? '#2D6A4F' : '#1B5F8C',
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                          }}>
-                            <span style={{ fontSize: '18px' }}>
-                              {['🥩','🥕','🌾','🥛','🫙','🧂','🍎','💰'][ci % 8]}
-                            </span>
-                            <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '14px', fontWeight: '600', color: 'white', margin: 0 }}>{cat.titulo}</p>
-                            {cat.items.length > 0 && (
-                              <span style={{ marginLeft: 'auto', fontSize: '11px', background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
-                                {cat.items.length}
-                              </span>
-                            )}
+                  const copiarLista = () => {
+                    const texto = listaCategorias
+                      .filter(c => !c.rawLines.some(r => r.trim().startsWith('|')))
+                      .map(c => `${c.titulo}:\n${c.items.map(i => `• ${i}`).join('\n')}`)
+                      .join('\n\n')
+                    navigator.clipboard.writeText(texto).then(() => {
+                      alert('✅ Lista copiada al portapapeles')
+                    })
+                  }
+
+                  return (
+                    <>
+                      {/* ── Encabezado + acciones ── */}
+                      <div style={{ marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                          <div>
+                            <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '16px', fontWeight: '600', color: '#2C1810' }}>Lista del Súper</p>
+                            <p style={{ fontSize: '12px', color: '#9B7B65' }}>{todosItems.length} ingredientes · Plan {fechaPlan}</p>
                           </div>
-                          {/* Items: chips si son simples, tabla si tiene markdown tabular */}
-                          <div style={{ padding: '14px 20px' }}>
-                            {cat.rawLines.some(r => r.trim().startsWith('|')) ? (
-                              /* Categoría con tabla (ej: presupuesto) — renderizar como markdown */
-                              renderTexto(cat.rawLines.join('\n'))
-                            ) : (
-                              /* Categoría con items simples — chips */
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
-                                {cat.items.map((item, ii) => (
-                                  <span key={ii} style={{
-                                    display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                    background: '#FAF7F2', border: '1px solid #E8DDD0',
-                                    borderRadius: '20px', padding: '5px 12px',
-                                    fontSize: '13px', color: '#2C1810', fontWeight: '500',
-                                  }}>
-                                    <span style={{ fontSize: '9px', color: '#C4A35A' }}>●</span>
-                                    {item}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <span className="badge badge-success">{todosItems.length} items</span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    /* Fallback: renderizar como texto */
-                    <div className="card" style={{ padding: '22px 24px' }}>
-                      {renderTexto(listaSuper)}
-                    </div>
-                  )}
-                </>
-              )}
+
+                        {/* Botones de acción */}
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {/* Buscar TODO en Walmart */}
+                          <a
+                            href={`https://super.walmart.com.mx/search?q=${encodeURIComponent(todosItems.slice(0,3).join(' '))}` }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '6px',
+                              padding: '9px 16px', borderRadius: '10px',
+                              background: '#0071CE', color: 'white',
+                              textDecoration: 'none', fontSize: '13px', fontWeight: '600',
+                              boxShadow: '0 2px 8px rgba(0,113,206,0.3)',
+                            }}
+                          >
+                            🛒 Ver en Walmart
+                          </a>
+
+                          {/* WhatsApp */}
+                          <a
+                            href={`https://wa.me/?text=${textoWhatsApp}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '6px',
+                              padding: '9px 16px', borderRadius: '10px',
+                              background: '#25D366', color: 'white',
+                              textDecoration: 'none', fontSize: '13px', fontWeight: '600',
+                              boxShadow: '0 2px 8px rgba(37,211,102,0.3)',
+                            }}
+                          >
+                            💬 Enviar por WhatsApp
+                          </a>
+
+                          {/* Copiar */}
+                          <button
+                            onClick={copiarLista}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '6px',
+                              padding: '9px 16px', borderRadius: '10px',
+                              background: 'white', color: '#6B4F3A',
+                              border: '1.5px solid #E8DDD0', fontSize: '13px', fontWeight: '600',
+                              cursor: 'pointer', fontFamily: "'Lato',sans-serif",
+                            }}
+                          >
+                            📋 Copiar lista
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* ── Categorías ── */}
+                      {listaCategorias.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {listaCategorias.map((cat, ci) => {
+                            const tieneTabla = cat.rawLines.some(r => r.trim().startsWith('|'))
+                            return (
+                              <div key={ci} className="card" style={{ padding: '0', overflow: 'hidden' }}>
+                                {/* Header categoría */}
+                                <div style={{
+                                  padding: '12px 20px',
+                                  background: ci % 2 === 0 ? '#2D6A4F' : '#1B5F8C',
+                                  display: 'flex', alignItems: 'center', gap: '10px',
+                                }}>
+                                  <span style={{ fontSize: '18px' }}>
+                                    {['🥩','🥕','🌾','🥛','🫙','🧂','🍎','💰'][ci % 8]}
+                                  </span>
+                                  <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '14px', fontWeight: '600', color: 'white', margin: 0 }}>{cat.titulo}</p>
+                                  {!tieneTabla && cat.items.length > 0 && (
+                                    <span style={{ marginLeft: 'auto', fontSize: '11px', background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
+                                      {cat.items.length}
+                                    </span>
+                                  )}
+                                  {/* Link buscar categoría en Walmart */}
+                                  {!tieneTabla && (
+                                    <a
+                                      href={`https://super.walmart.com.mx/search?q=${encodeURIComponent(cat.titulo)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      style={{
+                                        marginLeft: tieneTabla ? 'auto' : '0',
+                                        fontSize: '11px', color: 'rgba(255,255,255,0.8)',
+                                        textDecoration: 'none', background: 'rgba(0,113,206,0.5)',
+                                        padding: '2px 8px', borderRadius: '8px', fontWeight: '600',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      🛒 Walmart
+                                    </a>
+                                  )}
+                                </div>
+
+                                {/* Items */}
+                                <div style={{ padding: '14px 20px' }}>
+                                  {tieneTabla ? (
+                                    renderTexto(cat.rawLines.join('\n'))
+                                  ) : (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                                      {cat.items.map((item, ii) => {
+                                        // Extraer solo el nombre del producto (antes del "—" o "-")
+                                        const nombre = item.split(/\s*[—–-]\s*/)[0].trim()
+                                        return (
+                                          <a
+                                            key={ii}
+                                            href={`https://super.walmart.com.mx/search?q=${encodeURIComponent(nombre)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            title={`Buscar "${nombre}" en Walmart`}
+                                            style={{
+                                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                              background: '#FAF7F2', border: '1px solid #E8DDD0',
+                                              borderRadius: '20px', padding: '5px 12px',
+                                              fontSize: '13px', color: '#2C1810', fontWeight: '500',
+                                              textDecoration: 'none',
+                                              transition: 'all 0.15s',
+                                            }}
+                                            onMouseEnter={e => {
+                                              (e.currentTarget as HTMLAnchorElement).style.background = '#EEF4FF'
+                                              ;(e.currentTarget as HTMLAnchorElement).style.borderColor = '#0071CE'
+                                              ;(e.currentTarget as HTMLAnchorElement).style.color = '#0071CE'
+                                            }}
+                                            onMouseLeave={e => {
+                                              (e.currentTarget as HTMLAnchorElement).style.background = '#FAF7F2'
+                                              ;(e.currentTarget as HTMLAnchorElement).style.borderColor = '#E8DDD0'
+                                              ;(e.currentTarget as HTMLAnchorElement).style.color = '#2C1810'
+                                            }}
+                                          >
+                                            <span style={{ fontSize: '9px', color: '#C4A35A' }}>●</span>
+                                            {item}
+                                            <span style={{ fontSize: '10px', opacity: 0.5 }}>🛒</span>
+                                          </a>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="card" style={{ padding: '22px 24px' }}>
+                          {renderTexto(listaSuper)}
+                        </div>
+                      )}
+
+                      {/* Nota Walmart */}
+                      <div style={{ marginTop: '14px', padding: '12px 16px', borderRadius: '10px', background: '#EEF4FF', border: '1px solid #BFDBFE', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '16px', flexShrink: 0 }}>ℹ️</span>
+                        <p style={{ fontSize: '12px', color: '#1E40AF', margin: 0, lineHeight: '1.5' }}>
+                          Toca cualquier ingrediente o categoría para buscarlo en <strong>Walmart Super</strong>. También puedes enviar la lista por WhatsApp o copiarla para usarla en cualquier tienda en línea.
+                        </p>
+                      </div>
+                    </>
+                  )
+                })()
+              }
             </div>
           )}
 
