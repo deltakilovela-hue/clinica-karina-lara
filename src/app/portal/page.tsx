@@ -170,9 +170,8 @@ export default function PortalPage() {
   }
 
   if (cargando) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a0508 0%, #2d0f0a 50%, #1a0505 100%)' }}>
-      <div style={{ width: '36px', height: '36px', border: '2px solid rgba(180,120,60,0.3)', borderTopColor: 'rgba(180,120,60,0.8)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div className="loading-screen">
+      <div className="spinner" />
     </div>
   )
 
@@ -200,175 +199,212 @@ export default function PortalPage() {
   const listaSuper = planActual && listaHeader ? extraerSeccion(planActual, listaHeader) : ''
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #1a0508 0%, #2d0f0a 60%, #1a0505 100%)', fontFamily: "'Lato', sans-serif" }}>
-      <style>{`
-        @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        * { box-sizing: border-box; }
-      `}</style>
+    <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
 
-      {/* HEADER */}
-      <header style={{ borderBottom: '1px solid rgba(180,120,60,0.18)', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '62px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: 'white', fontFamily: 'Georgia, serif' }}>KL</div>
+      {/* ── HEADER PORTAL ─────────────────────────────────────── */}
+      <header style={{
+        background: 'white', borderBottom: '1px solid #E8DDD0',
+        position: 'sticky', top: 0, zIndex: 10,
+        boxShadow: '0 1px 8px rgba(44,24,16,0.06)',
+      }}>
+        <div style={{ maxWidth: '720px', margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '38px', height: '38px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #7B1B2A, #A63244)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '13px', fontWeight: '700', color: 'white',
+              fontFamily: "'Playfair Display', serif",
+              boxShadow: '0 3px 10px rgba(123,27,42,0.28)',
+            }}>KL</div>
             <div>
-              <p style={{ fontSize: '14px', fontWeight: '600', color: 'white', fontFamily: 'Georgia, serif' }}>Clínica Karina Lara</p>
-              <p style={{ fontSize: '11px', color: 'rgba(180,120,60,0.65)' }}>Portal para Padres</p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontWeight: '600', fontSize: '15px', color: '#2C1810', lineHeight: 1.2 }}>Clínica Karina Lara</p>
+              <p style={{ fontSize: '10px', color: '#C4A35A', fontWeight: '600', letterSpacing: '0.5px' }}>PORTAL PARA PADRES</p>
             </div>
           </div>
-          <button onClick={cerrarSesion} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', border: '1px solid rgba(180,120,60,0.3)', background: 'transparent', color: 'rgba(180,120,60,0.85)', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>
+          <button
+            onClick={cerrarSesion}
+            className="btn-ghost"
+            style={{ fontSize: '13px' }}
+          >
             Salir
           </button>
         </div>
       </header>
 
       {!paciente ? (
-        <div style={{ maxWidth: '760px', margin: '0 auto', padding: '70px 24px', textAlign: 'center' }}>
-          <p style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</p>
-          <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '16px', marginBottom: '8px' }}>No se encontró expediente asociado</p>
-          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>{usuarioEmail}</p>
-          <p style={{ color: 'rgba(180,120,60,0.65)', fontSize: '13px', marginTop: '16px' }}>Contacta a la Lic. Karina Lara para obtener acceso.</p>
+        <div style={{ maxWidth: '720px', margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: '56px', marginBottom: '20px' }}>🔍</div>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', color: '#2C1810', marginBottom: '10px' }}>Sin expediente asociado</h2>
+          <p style={{ color: '#9B7B65', fontSize: '14px', marginBottom: '6px' }}>{usuarioEmail}</p>
+          <p style={{ color: '#C4A35A', fontSize: '14px' }}>Contacta a la Lic. Karina Lara para obtener acceso.</p>
         </div>
       ) : (
-        <main style={{ maxWidth: '760px', margin: '0 auto', padding: '24px 20px 60px' }}>
+        <main style={{ maxWidth: '720px', margin: '0 auto', padding: '32px 24px 64px' }}>
 
-          {/* PERFIL */}
-          <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '22px', marginBottom: '18px', animation: 'fadeIn 0.35s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: '700', color: 'white', fontFamily: 'Georgia, serif', flexShrink: 0 }}>
-                {paciente.nombre.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <h1 style={{ fontSize: '19px', fontWeight: '600', color: 'white', fontFamily: 'Georgia, serif', marginBottom: '3px', textTransform: 'capitalize' }}>{paciente.nombre}</h1>
-                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textTransform: 'capitalize' }}>{paciente.edad} años · {paciente.sexo}</p>
-              </div>
-            </div>
-
-            {/* Stats */}
-            {ultimaMed && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                {[
-                  { label: 'Peso actual', valor: `${ultimaMed.peso} kg` },
-                  { label: 'Talla', valor: `${ultimaMed.talla} cm` },
-                  { label: 'IMC', valor: String(ultimaMed.imc) },
-                ].map(s => (
-                  <div key={s.label} style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                    <p style={{ fontSize: '17px', fontWeight: '700', color: 'rgba(200,150,80,0.95)', marginBottom: '3px' }}>{s.valor}</p>
-                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</p>
+          {/* ── TARJETA PERFIL ───────────────────────────────── */}
+          <div className="card fade-in" style={{
+            padding: '0', marginBottom: '20px', overflow: 'hidden',
+          }}>
+            {/* Banner decorativo */}
+            <div style={{
+              height: '6px',
+              background: 'linear-gradient(90deg, #7B1B2A 0%, #A63244 40%, #C4A35A 100%)',
+            }} />
+            <div style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: ultimaMed ? '20px' : 0 }}>
+                <div className="avatar" style={{ width: '56px', height: '56px', fontSize: '22px', borderRadius: '14px' }}>
+                  {paciente.nombre.charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', fontWeight: '600', color: '#2C1810', marginBottom: '4px', textTransform: 'capitalize' }}>
+                    {paciente.nombre}
+                  </h1>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', color: '#9B7B65' }}>{paciente.edad} años</span>
+                    <span className="badge badge-muted" style={{ textTransform: 'capitalize', fontSize: '11px' }}>{paciente.sexo}</span>
                   </div>
-                ))}
+                </div>
+                <span className="badge badge-success">✓ Activo</span>
               </div>
-            )}
+
+              {/* Stats mediciones */}
+              {ultimaMed && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {[
+                    { label: 'Peso actual', valor: `${ultimaMed.peso} kg`, color: '#7B1B2A' },
+                    { label: 'Talla',       valor: `${ultimaMed.talla} cm`, color: '#2D6A4F' },
+                    { label: 'IMC',         valor: String(ultimaMed.imc),   color: '#8B6914' },
+                  ].map(s => (
+                    <div key={s.label} style={{
+                      background: '#FAF7F2', borderRadius: '12px', padding: '14px',
+                      textAlign: 'center', border: '1px solid #E8DDD0',
+                    }}>
+                      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', fontWeight: '600', color: s.color, marginBottom: '3px' }}>{s.valor}</p>
+                      <p style={{ fontSize: '10px', color: '#9B7B65', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* TABS */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '18px', background: 'rgba(0,0,0,0.3)', borderRadius: '14px', padding: '5px' }}>
+          {/* ── TABS ─────────────────────────────────────────── */}
+          <div className="tab-bar fade-in">
             {[
-              { key: 'plan', label: '🥗 Plan Nutricional' },
+              { key: 'plan',      label: '🥗 Plan Nutricional' },
               { key: 'mediciones', label: '📏 Mediciones' },
             ].map(t => (
-              <button key={t.key} onClick={() => setTab(t.key as 'plan' | 'mediciones')} style={{
-                flex: 1, padding: '11px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
-                cursor: 'pointer', fontFamily: "'Lato', sans-serif", border: 'none', transition: 'all 0.2s',
-                background: tab === t.key ? 'rgba(123,27,42,0.85)' : 'transparent',
-                color: tab === t.key ? 'white' : 'rgba(255,255,255,0.45)',
-              }}>{t.label}</button>
+              <button
+                key={t.key}
+                className={`tab-item${tab === t.key ? ' active' : ''}`}
+                onClick={() => setTab(t.key as 'plan' | 'mediciones')}
+              >{t.label}</button>
             ))}
           </div>
 
-          {/* TAB PLAN NUTRICIONAL */}
+          {/* ── TAB PLAN ─────────────────────────────────────── */}
           {tab === 'plan' && (
-            <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <div className="fade-in">
               {planActual ? (
                 <>
-                  {/* Plan de alimentación */}
-                  <div style={{ background: 'white', borderRadius: '18px', overflow: 'hidden', marginBottom: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.25)' }}>
-                    <div style={{ background: 'linear-gradient(135deg, #7B1B2A, #A63244)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Plan */}
+                  <div className="card" style={{ overflow: 'hidden', marginBottom: '16px' }}>
+                    <div style={{
+                      background: 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                      padding: '20px 26px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
                       <div>
-                        <h2 style={{ fontSize: '17px', fontWeight: '700', color: 'white', fontFamily: 'Georgia, serif', marginBottom: '3px' }}>Plan de Alimentación</h2>
-                        {fechaPlan && <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)' }}>Generado: {fechaPlan}</p>}
+                        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '600', color: 'white', marginBottom: '3px' }}>Plan de Alimentación</h2>
+                        {fechaPlan && <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Generado: {fechaPlan}</p>}
                       </div>
-                      <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
+                      <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)' }}>
                         ✓ Vigente
                       </span>
                     </div>
-                    <div style={{ padding: '24px 26px' }}>
+                    <div style={{ padding: '26px 28px' }}>
                       {renderizarTexto(planSeccion)}
                     </div>
                   </div>
 
-                  {/* Lista del Súper */}
+                  {/* Lista del súper */}
                   {listaSuper && (
-                    <div style={{ background: 'white', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.25)' }}>
-                      <div style={{ background: 'linear-gradient(135deg, #2D6A4F, #40916C)', padding: '18px 24px' }}>
-                        <h2 style={{ fontSize: '17px', fontWeight: '700', color: 'white', fontFamily: 'Georgia, serif' }}>🛒 Lista del Súper</h2>
-                        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', marginTop: '3px' }}>Ingredientes para el plan de esta semana</p>
+                    <div className="card" style={{ overflow: 'hidden' }}>
+                      <div style={{
+                        background: 'linear-gradient(135deg, #2D6A4F, #40916C)',
+                        padding: '20px 26px',
+                      }}>
+                        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '600', color: 'white', marginBottom: '3px' }}>🛒 Lista del Súper</h2>
+                        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Ingredientes para el plan de esta semana</p>
                       </div>
-                      <div style={{ padding: '24px 26px' }}>
+                      <div style={{ padding: '26px 28px' }}>
                         {renderizarTexto(listaSuper)}
                       </div>
                     </div>
                   )}
                 </>
               ) : (
-                <div style={{ background: 'white', borderRadius: '18px', padding: '60px 24px', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.25)' }}>
-                  <p style={{ fontSize: '48px', marginBottom: '14px' }}>🥗</p>
-                  <p style={{ fontSize: '17px', fontWeight: '600', color: '#2C1810', marginBottom: '8px', fontFamily: 'Georgia, serif' }}>Sin plan generado aún</p>
+                <div className="card" style={{ padding: '60px 24px', textAlign: 'center', border: '2px dashed #E8DDD0' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🥗</div>
+                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810', marginBottom: '8px' }}>Sin plan generado aún</p>
                   <p style={{ color: '#9B7B65', fontSize: '14px' }}>La nutrióloga generará tu plan en la próxima consulta</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB MEDICIONES */}
+          {/* ── TAB MEDICIONES ───────────────────────────────── */}
           {tab === 'mediciones' && (
-            <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {mediciones.length === 0 ? (
-                <div style={{ background: 'white', borderRadius: '18px', padding: '60px 24px', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.25)' }}>
-                  <p style={{ fontSize: '48px', marginBottom: '14px' }}>📏</p>
-                  <p style={{ fontSize: '17px', fontWeight: '600', color: '#2C1810', marginBottom: '8px', fontFamily: 'Georgia, serif' }}>Sin mediciones registradas</p>
+                <div className="card" style={{ padding: '60px 24px', textAlign: 'center', border: '2px dashed #E8DDD0' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📏</div>
+                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: '#2C1810' }}>Sin mediciones registradas</p>
                 </div>
               ) : (mediciones as Record<string, unknown>[]).map((m, i) => (
-                <div key={String(m.id)} style={{
-                  background: 'white', borderRadius: '18px', overflow: 'hidden',
-                  boxShadow: i === 0 ? '0 4px 24px rgba(123,27,42,0.18)' : '0 4px 18px rgba(0,0,0,0.18)',
-                  border: i === 0 ? '2px solid rgba(123,27,42,0.2)' : 'none',
-                  animation: 'fadeIn 0.35s ease',
-                }}>
-                  <div style={{ padding: '16px 22px', background: i === 0 ? '#FAF0F2' : '#FAFAFA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #F0E8E8' }}>
-                    <p style={{ fontSize: '15px', fontWeight: '700', color: '#2C1810', fontFamily: 'Georgia, serif' }}>
+                <div
+                  key={String(m.id)}
+                  className="card"
+                  style={{
+                    overflow: 'hidden',
+                    borderColor: i === 0 ? 'rgba(123,27,42,0.25)' : '#E8DDD0',
+                    borderWidth: i === 0 ? '1.5px' : '1px',
+                  }}
+                >
+                  <div style={{
+                    padding: '14px 22px',
+                    background: i === 0 ? '#F5E8EB' : '#FFFAF7',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    borderBottom: '1px solid #E8DDD0',
+                  }}>
+                    <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '15px', fontWeight: '600', color: '#2C1810' }}>
                       {formatFecha(m.fechaCreacion || m.fecha)}
                     </p>
-                    {i === 0 && <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: 'rgba(123,27,42,0.1)', color: '#7B1B2A', border: '1px solid rgba(123,27,42,0.15)' }}>Más reciente</span>}
+                    {i === 0 && <span className="badge badge-vino">Más reciente</span>}
                   </div>
                   <div style={{ padding: '18px 22px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: (m.interpretacionPeso || m.interpretacionTalla) ? '14px' : 0 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: (m.interpretacionPeso || m.interpretacionTalla) ? '14px' : 0 }}>
                       {[
-                        { l: 'Peso', v: `${m.peso} kg` },
-                        { l: 'Talla', v: `${m.talla} cm` },
-                        { l: 'IMC', v: String(m.imc) },
+                        { l: 'Peso',   v: `${m.peso} kg` },
+                        { l: 'Talla',  v: `${m.talla} cm` },
+                        { l: 'IMC',    v: String(m.imc) },
                         { l: 'P. Peso', v: `P${m.percentilPeso}` },
                         { l: 'P. Talla', v: `P${m.percentilTalla}` },
                       ].map(d => (
-                        <div key={d.l} style={{ background: '#FAF7F2', borderRadius: '10px', padding: '11px 6px', textAlign: 'center', border: '1px solid #EFE8E0' }}>
-                          <p style={{ fontSize: '15px', fontWeight: '700', color: '#7B1B2A', marginBottom: '3px' }}>{String(d.v)}</p>
+                        <div key={d.l} style={{
+                          background: '#FAF7F2', borderRadius: '10px', padding: '10px 6px',
+                          textAlign: 'center', border: '1px solid #E8DDD0',
+                        }}>
+                          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '15px', fontWeight: '600', color: '#7B1B2A', marginBottom: '3px' }}>{String(d.v)}</p>
                           <p style={{ fontSize: '10px', color: '#9B7B65', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{d.l}</p>
                         </div>
                       ))}
                     </div>
                     {(!!m.interpretacionPeso || !!m.interpretacionTalla) && (
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {!!m.interpretacionPeso && (
-                          <span style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', background: '#F5E8EB', color: '#7B1B2A', border: '1px solid rgba(123,27,42,0.15)' }}>
-                            Peso: {String(m.interpretacionPeso)}
-                          </span>
-                        )}
-                        {!!m.interpretacionTalla && (
-                          <span style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', background: '#E8F4F0', color: '#2D6A4F', border: '1px solid rgba(45,106,79,0.15)' }}>
-                            Talla: {String(m.interpretacionTalla)}
-                          </span>
-                        )}
+                        {!!m.interpretacionPeso && <span className="badge badge-vino">Peso: {String(m.interpretacionPeso)}</span>}
+                        {!!m.interpretacionTalla && <span className="badge badge-success">Talla: {String(m.interpretacionTalla)}</span>}
                       </div>
                     )}
                   </div>
@@ -377,11 +413,16 @@ export default function PortalPage() {
             </div>
           )}
 
-          {/* Footer */}
-          <div style={{ marginTop: '28px', padding: '14px 20px', borderRadius: '12px', background: 'rgba(180,120,60,0.07)', border: '1px solid rgba(180,120,60,0.15)', textAlign: 'center' }}>
-            <p style={{ fontSize: '13px', color: 'rgba(180,120,60,0.75)' }}>🌟 Clínica Karina Lara · Nutrición Clínica Especializada</p>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.28)', marginTop: '3px' }}>Para dudas, comunícate directamente con la nutrióloga</p>
+          {/* ── Footer ───────────────────────────────────────── */}
+          <div style={{
+            marginTop: '36px', padding: '16px 20px', borderRadius: '12px',
+            background: '#FDF6E3', border: '1px solid #E8DDD0',
+            textAlign: 'center',
+          }}>
+            <p style={{ fontSize: '13px', color: '#8B6914', fontWeight: '600' }}>🌟 Clínica Karina Lara · Nutrición Clínica Especializada</p>
+            <p style={{ fontSize: '12px', color: '#9B7B65', marginTop: '3px' }}>Para dudas, comunícate directamente con la nutrióloga</p>
           </div>
+
         </main>
       )}
     </div>

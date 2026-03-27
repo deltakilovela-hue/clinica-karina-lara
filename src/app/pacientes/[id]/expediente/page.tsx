@@ -8,6 +8,7 @@ import { obtenerPaciente, Paciente } from '@/lib/pacientes'
 import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
+import Sidebar from '@/components/Sidebar'
 
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
@@ -129,9 +130,8 @@ export default function ExpedientePage() {
   const ultimoPlan = planes[0] as Record<string, unknown> | undefined
 
   if (cargando) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAF7F2' }}>
-      <div style={{ width: '40px', height: '40px', border: '3px solid #E8DDD0', borderTopColor: '#7B1B2A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div className="loading-screen">
+      <div className="spinner" />
     </div>
   )
 
@@ -144,20 +144,20 @@ export default function ExpedientePage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FAF7F2', fontFamily: "'Lato', sans-serif" }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    <div className="app-layout">
+      <Sidebar />
 
-      {/* ── HEADER ── */}
-      <header style={{ background: 'white', borderBottom: '1px solid #E8DDD0', padding: '0 24px' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-            <Link href="/dashboard" style={{ color: '#9B7B65', textDecoration: 'none' }}>Dashboard</Link>
-            <span style={{ color: '#C9B8A8' }}>/</span>
-            <Link href="/pacientes" style={{ color: '#9B7B65', textDecoration: 'none' }}>Pacientes</Link>
-            <span style={{ color: '#C9B8A8' }}>/</span>
-            <Link href={`/pacientes/${id}`} style={{ color: '#9B7B65', textDecoration: 'none' }}>{paciente?.nombre}</Link>
-            <span style={{ color: '#C9B8A8' }}>/</span>
-            <span style={{ color: '#2C1810', fontWeight: '600' }}>Expediente</span>
+      <main className="app-main" style={{ padding: '36px 40px 60px' }}>
+        {/* ── Breadcrumb + acciones ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }} className="fade-in">
+          <div className="breadcrumb" style={{ marginBottom: 0 }}>
+            <Link href="/dashboard">Dashboard</Link>
+            <span>/</span>
+            <Link href="/pacientes">Pacientes</Link>
+            <span>/</span>
+            <Link href={`/pacientes/${id}`}>{paciente?.nombre}</Link>
+            <span>/</span>
+            <span className="current">Expediente</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {errorDescarga && (
@@ -168,28 +168,21 @@ export default function ExpedientePage() {
             <button
               onClick={descargarExpediente}
               disabled={descargando || cargando}
-              style={{
-                padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
-                background: descargando ? '#C9B8A8' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
-                color: 'white', border: 'none', cursor: descargando ? 'not-allowed' : 'pointer',
-                fontFamily: "'Lato', sans-serif", display: 'flex', alignItems: 'center', gap: '6px',
-              }}
+              className={descargando ? 'btn-ghost' : 'btn-primary'}
+              style={{ opacity: descargando ? 0.6 : 1 }}
             >
               {descargando ? '⏳ Generando...' : '📄 Descargar Expediente'}
             </button>
-            <Link href={`/pacientes/${id}`} style={{ fontSize: '13px', color: '#7B1B2A', textDecoration: 'none', fontWeight: '600' }}>
-              ← Volver al paciente
+            <Link href={`/pacientes/${id}`} className="btn-ghost">
+              ← Volver
             </Link>
           </div>
         </div>
-      </header>
-
-      <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Perfil del paciente */}
-        <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #E8DDD0', padding: '28px', marginBottom: '24px', boxShadow: '0 2px 12px rgba(44,24,16,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+        <div className="card fade-in" style={{ padding: '28px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, #7B1B2A, #A63244)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '22px', fontWeight: '700', fontFamily: "'Playfair Display', serif" }}>
+            <div className="avatar" style={{ width: '56px', height: '56px', fontSize: '22px' }}>
               {paciente?.nombre?.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -219,14 +212,13 @@ export default function ExpedientePage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'white', borderRadius: '12px', padding: '4px', border: '1px solid #E8DDD0', overflowX: 'auto' }}>
+        <div className="tab-bar">
           {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: '8px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: '600',
-              cursor: 'pointer', fontFamily: "'Lato', sans-serif", border: 'none', whiteSpace: 'nowrap',
-              background: tab === t.key ? '#7B1B2A' : 'transparent',
-              color: tab === t.key ? 'white' : '#6B4F3A',
-            }}>{t.label}</button>
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`tab-item${tab === t.key ? ' active' : ''}`}
+            >{t.label}</button>
           ))}
         </div>
 
