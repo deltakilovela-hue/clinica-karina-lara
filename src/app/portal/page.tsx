@@ -235,25 +235,34 @@ export default function PortalPage() {
   const listaSuper = planActual && listaHeader ? extraerSeccion(planActual, listaHeader) : ''
 
   // ── Parsear lista del súper en categorías ──────────────────────────────────
-  type CategoriaLista = { titulo: string; items: string[] }
+  // items = chips simples; rawLines = líneas originales (incluye tablas)
+  type CategoriaLista = { titulo: string; items: string[]; rawLines: string[] }
   const parsearLista = (texto: string): CategoriaLista[] => {
     const cats: CategoriaLista[] = []
-    let actual: CategoriaLista = { titulo: 'General', items: [] }
+    let actual: CategoriaLista = { titulo: 'General', items: [], rawLines: [] }
     for (const linea of texto.split('\n')) {
       const l = linea.trim()
-      if (!l) continue
-      if (l.startsWith('### ') || l.startsWith('## ') || (l.startsWith('**') && l.endsWith('**'))) {
-        if (actual.items.length > 0) cats.push(actual)
-        actual = { titulo: l.replace(/^#{1,3} /, '').replace(/\*\*/g, '').replace(/:$/, '').trim(), items: [] }
+      if (!l) { actual.rawLines.push(''); continue }
+      if (l.startsWith('### ') || l.startsWith('## ') || (l.startsWith('**') && l.endsWith('**') && !l.slice(2,-2).includes('**'))) {
+        if (actual.items.length > 0 || actual.rawLines.some(r => r.startsWith('|'))) cats.push(actual)
+        actual = { titulo: l.replace(/^#{1,3} /, '').replace(/\*\*/g, '').replace(/:$/, '').trim(), items: [], rawLines: [] }
+      } else if (l.startsWith('|')) {
+        // Fila de tabla — se guarda para renderTexto()
+        actual.rawLines.push(linea)
       } else if (l.startsWith('- ') || l.startsWith('* ')) {
-        actual.items.push(l.replace(/^[-*] /, '').replace(/\*\*(.*?)\*\*/g, '$1').trim())
+        const item = l.replace(/^[-*] /, '').replace(/\*\*(.*?)\*\*/g, '$1').trim()
+        actual.items.push(item)
+        actual.rawLines.push(linea)
       } else if (l.match(/^\d+\. /)) {
-        actual.items.push(l.replace(/^\d+\. /, '').replace(/\*\*(.*?)\*\*/g, '$1').trim())
-      } else if (!l.startsWith('|') && !l.startsWith('#') && l.length > 0) {
+        const item = l.replace(/^\d+\. /, '').replace(/\*\*(.*?)\*\*/g, '$1').trim()
+        actual.items.push(item)
+        actual.rawLines.push(linea)
+      } else if (l.length > 0) {
         actual.items.push(l.replace(/\*\*(.*?)\*\*/g, '$1').trim())
+        actual.rawLines.push(linea)
       }
     }
-    if (actual.items.length > 0) cats.push(actual)
+    if (actual.items.length > 0 || actual.rawLines.some(r => r.startsWith('|'))) cats.push(actual)
     return cats
   }
 
@@ -505,26 +514,36 @@ export default function PortalPage() {
                             display: 'flex', alignItems: 'center', gap: '10px',
                           }}>
                             <span style={{ fontSize: '18px' }}>
-                              {['🥩','🥕','🌾','🥛','🫙','🧂','🍎','🐟'][ci % 8]}
+                              {['🥩','🥕','🌾','🥛','🫙','🧂','🍎','💰'][ci % 8]}
                             </span>
                             <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '14px', fontWeight: '600', color: 'white', margin: 0 }}>{cat.titulo}</p>
-                            <span style={{ marginLeft: 'auto', fontSize: '11px', background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
-                              {cat.items.length}
-                            </span>
-                          </div>
-                          {/* Items */}
-                          <div style={{ padding: '14px 20px', display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
-                            {cat.items.map((item, ii) => (
-                              <span key={ii} style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                background: '#FAF7F2', border: '1px solid #E8DDD0',
-                                borderRadius: '20px', padding: '5px 12px',
-                                fontSize: '13px', color: '#2C1810', fontWeight: '500',
-                              }}>
-                                <span style={{ fontSize: '9px', color: '#C4A35A' }}>●</span>
-                                {item}
+                            {cat.items.length > 0 && (
+                              <span style={{ marginLeft: 'auto', fontSize: '11px', background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
+                                {cat.items.length}
                               </span>
-                            ))}
+                            )}
+                          </div>
+                          {/* Items: chips si son simples, tabla si tiene markdown tabular */}
+                          <div style={{ padding: '14px 20px' }}>
+                            {cat.rawLines.some(r => r.trim().startsWith('|')) ? (
+                              /* Categoría con tabla (ej: presupuesto) — renderizar como markdown */
+                              renderTexto(cat.rawLines.join('\n'))
+                            ) : (
+                              /* Categoría con items simples — chips */
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                                {cat.items.map((item, ii) => (
+                                  <span key={ii} style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                    background: '#FAF7F2', border: '1px solid #E8DDD0',
+                                    borderRadius: '20px', padding: '5px 12px',
+                                    fontSize: '13px', color: '#2C1810', fontWeight: '500',
+                                  }}>
+                                    <span style={{ fontSize: '9px', color: '#C4A35A' }}>●</span>
+                                    {item}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

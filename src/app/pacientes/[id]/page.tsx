@@ -323,15 +323,66 @@ export default function DetallePacientePage() {
           )}
 
           {/* Último plan resumido */}
-          {ultimoPlan && (
-            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', padding: '20px', marginBottom: '16px' }}>
-              <p style={{ fontSize: '10px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>🧠 Último Plan Nutricional IA — {formatFecha(ultimoPlan.fechaCreacion)}</p>
-              <p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.6', maxHeight: '120px', overflow: 'hidden' }}>
-                {String(ultimoPlan.texto || '').slice(0, 400)}...
-              </p>
-              <Link href={`/pacientes/${id}/plan`} style={{ fontSize: '12px', color: '#7B1B2A', fontWeight: '600', textDecoration: 'none', marginTop: '8px', display: 'inline-block' }}>Ver plan completo →</Link>
-            </div>
-          )}
+          {ultimoPlan && (() => {
+            const textoRaw = String(ultimoPlan.texto || '')
+            // Extraer objetivos del tratamiento (bullet points de la primera sección)
+            const objetivosMatch = textoRaw.match(/OBJETIVOS[^\n]*\n([\s\S]*?)(?=###|##|\n\n\n|$)/i)
+            const objetivosBullets = objetivosMatch
+              ? objetivosMatch[1].split('\n').map(l => l.trim()).filter(l => l.startsWith('- ') || l.startsWith('* ')).slice(0, 3)
+              : []
+            // Detectar días disponibles
+            const diasRegex = /###\s+(LUNES|MARTES|MIÉRCOLES|MIERCOLES|JUEVES|VIERNES|SÁBADO|SABADO|DOMINGO)/gi
+            const diasEncontrados: string[] = []
+            let m; while ((m = diasRegex.exec(textoRaw)) !== null) diasEncontrados.push(m[1])
+            return (
+              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E8DDD0', padding: '20px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase', letterSpacing: '0.8px' }}>🧠 Último Plan Nutricional IA</p>
+                  <p style={{ fontSize: '11px', color: '#9B7B65' }}>{formatFecha(ultimoPlan.fechaCreacion)}</p>
+                </div>
+
+                {/* Días del plan */}
+                {diasEncontrados.length > 0 && (
+                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                    {['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO']
+                      .filter(d => diasEncontrados.some(de => de.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase() === d.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()))
+                      .map(d => (
+                        <span key={d} style={{ fontSize: '10px', padding: '3px 9px', borderRadius: '10px', background: '#F5E8EB', color: '#7B1B2A', fontWeight: '700', letterSpacing: '0.3px' }}>
+                          {d.slice(0,3)}
+                        </span>
+                      ))
+                    }
+                  </div>
+                )}
+
+                {/* Objetivos */}
+                {objetivosBullets.length > 0 ? (
+                  <div style={{ marginBottom: '12px' }}>
+                    {objetivosBullets.map((b, i) => (
+                      <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '5px' }}>
+                        <span style={{ color: '#A63244', fontWeight: '700', flexShrink: 0, fontSize: '14px', lineHeight: '1.5' }}>•</span>
+                        <p style={{ fontSize: '13px', color: '#2C1810', lineHeight: '1.5', margin: 0 }}>
+                          {b.replace(/^[-*] /, '').replace(/\*\*(.*?)\*\*/g, '$1')}
+                        </p>
+                      </div>
+                    ))}
+                    {textoRaw.match(/OBJETIVOS[^\n]*\n([\s\S]*?)(?=###|##|\n\n\n|$)/i)?.[1]
+                      .split('\n').filter(l => l.trim().startsWith('- ') || l.trim().startsWith('* ')).length > 3 && (
+                      <p style={{ fontSize: '11px', color: '#9B7B65', marginTop: '4px' }}>y más objetivos…</p>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '13px', color: '#9B7B65', marginBottom: '12px', fontStyle: 'italic' }}>
+                    Plan de {diasEncontrados.length > 0 ? `${diasEncontrados.length} días` : 'alimentación'} generado
+                  </p>
+                )}
+
+                <Link href={`/pacientes/${id}/plan`} style={{ fontSize: '12px', color: '#7B1B2A', fontWeight: '700', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 14px', border: '1.5px solid #7B1B2A', borderRadius: '8px' }}>
+                  Ver plan completo →
+                </Link>
+              </div>
+            )
+          })()}
 
           {/* Módulos */}
           <div>
