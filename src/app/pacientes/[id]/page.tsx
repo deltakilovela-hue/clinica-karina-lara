@@ -366,7 +366,7 @@ export default function DetallePacientePage() {
                         </p>
                       </div>
                     ))}
-                    {textoRaw.match(/OBJETIVOS[^\n]*\n([\s\S]*?)(?=###|##|\n\n\n|$)/i)?.[1]
+                    {(textoRaw.match(/OBJETIVOS[^\n]*\n([\s\S]*?)(?=###|##|\n\n\n|$)/i)?.[1] ?? '')
                       .split('\n').filter(l => l.trim().startsWith('- ') || l.trim().startsWith('* ')).length > 3 && (
                       <p style={{ fontSize: '11px', color: '#9B7B65', marginTop: '4px' }}>y más objetivos…</p>
                     )}
