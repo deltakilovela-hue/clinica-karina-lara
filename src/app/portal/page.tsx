@@ -154,6 +154,7 @@ export default function PortalPage() {
   const [usuarioEmail, setUsuarioEmail] = useState('')
   const [tab, setTab] = useState<'plan' | 'mediciones' | 'lista'>('plan')
   const [diaActivo, setDiaActivo] = useState(0)
+  const [itemsChecked, setItemsChecked] = useState<Set<string>>(new Set())
 
   const [planActual, setPlanActual] = useState('')
   const [fechaPlan, setFechaPlan] = useState('')
@@ -197,6 +198,34 @@ export default function PortalPage() {
   }
 
   const cerrarSesion = async () => { await signOut(auth); router.push('/') }
+
+  // ── Cargar items palomeados desde localStorage ─────────────────────────────
+  useEffect(() => {
+    if (!paciente?.id) return
+    try {
+      const saved = localStorage.getItem(`checked_${paciente.id}`)
+      if (saved) setItemsChecked(new Set(JSON.parse(saved) as string[]))
+    } catch { /* ignore */ }
+  }, [paciente?.id])
+
+  const toggleItem = (itemKey: string) => {
+    setItemsChecked(prev => {
+      const next = new Set(prev)
+      if (next.has(itemKey)) next.delete(itemKey)
+      else next.add(itemKey)
+      try {
+        if (paciente?.id) localStorage.setItem(`checked_${paciente.id}`, JSON.stringify([...next]))
+      } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const limpiarChecked = () => {
+    setItemsChecked(new Set())
+    try {
+      if (paciente?.id) localStorage.removeItem(`checked_${paciente.id}`)
+    } catch { /* ignore */ }
+  }
 
   const formatFecha = (ts: unknown) => {
     if (!ts) return '—'
@@ -494,22 +523,43 @@ export default function PortalPage() {
                   <p style={{ color: '#9B7B65', fontSize: '14px' }}>El plan aún no incluye lista de compras</p>
                 </div>
               ) : (() => {
-                  // Todos los items de todas las categorías (solo los simples, no tablas)
+                  // ── Computa items y estado de palomeo ──────────────────────
                   const todosItems = listaCategorias.flatMap(c =>
                     c.rawLines.some(r => r.trim().startsWith('|')) ? [] : c.items
                   )
+                  // Clave única por item: "categoria__item"
+                  const mkKey = (catTitulo: string, item: string) => `${catTitulo}__${item}`
+                  const uncheckedItems = listaCategorias.flatMap(c =>
+                    c.rawLines.some(r => r.trim().startsWith('|'))
+                      ? []
+                      : c.items.filter(i => !itemsChecked.has(mkKey(c.titulo, i)))
+                  )
+                  const checkedCount = todosItems.length - uncheckedItems.length
+
                   const textoWhatsApp = encodeURIComponent(
-                    `🛒 *Lista del Súper — ${paciente?.nombre}*\n_Plan nutricional ${fechaPlan}_\n\n` +
+                    `🛒 *Lista del Súper — ${paciente?.nombre}*\n_Plan nutricional ${fechaPlan}_\n` +
+                    (checkedCount > 0 ? `_✓ Ya tienes ${checkedCount} ingredientes_\n` : '') +
+                    `\n` +
                     listaCategorias
                       .filter(c => !c.rawLines.some(r => r.trim().startsWith('|')))
-                      .map(c => `*${c.titulo}*\n${c.items.map(i => `• ${i}`).join('\n')}`)
+                      .map(c => {
+                        const pendientes = c.items.filter(i => !itemsChecked.has(mkKey(c.titulo, i)))
+                        if (pendientes.length === 0) return null
+                        return `*${c.titulo}*\n${pendientes.map(i => `• ${i}`).join('\n')}`
+                      })
+                      .filter(Boolean)
                       .join('\n\n')
                   )
 
                   const copiarLista = () => {
                     const texto = listaCategorias
                       .filter(c => !c.rawLines.some(r => r.trim().startsWith('|')))
-                      .map(c => `${c.titulo}:\n${c.items.map(i => `• ${i}`).join('\n')}`)
+                      .map(c => {
+                        const pendientes = c.items.filter(i => !itemsChecked.has(mkKey(c.titulo, i)))
+                        if (pendientes.length === 0) return null
+                        return `${c.titulo}:\n${pendientes.map(i => `• ${i}`).join('\n')}`
+                      })
+                      .filter(Boolean)
                       .join('\n\n')
                     navigator.clipboard.writeText(texto).then(() => {
                       alert('✅ Lista copiada al portapapeles')
@@ -520,33 +570,48 @@ export default function PortalPage() {
                     <>
                       {/* ── Encabezado + acciones ── */}
                       <div style={{ marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                           <div>
                             <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '16px', fontWeight: '600', color: '#2C1810' }}>Lista del Súper</p>
                             <p style={{ fontSize: '12px', color: '#9B7B65' }}>{todosItems.length} ingredientes · Plan {fechaPlan}</p>
                           </div>
-                          <span className="badge badge-success">{todosItems.length} items</span>
+                          {checkedCount > 0 && (
+                            <button
+                              onClick={limpiarChecked}
+                              style={{
+                                fontSize: '11px', color: '#9B7B65', background: 'none',
+                                border: '1px solid #E8DDD0', borderRadius: '8px',
+                                padding: '4px 10px', cursor: 'pointer', fontFamily: "'Lato',sans-serif",
+                              }}
+                            >↺ Limpiar</button>
+                          )}
                         </div>
+
+                        {/* ── Barra de progreso palomeo ── */}
+                        {checkedCount > 0 && (
+                          <div style={{ marginBottom: '12px', padding: '12px 16px', borderRadius: '12px', background: '#F0FAF5', border: '1px solid #A7D7BC' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
+                              <p style={{ fontSize: '13px', color: '#2D6A4F', fontWeight: '600', margin: 0 }}>
+                                ✓ Ya tienes {checkedCount} de {todosItems.length} ingredientes
+                              </p>
+                              <p style={{ fontSize: '13px', color: '#7B1B2A', fontWeight: '600', margin: 0 }}>
+                                {uncheckedItems.length} por comprar
+                              </p>
+                            </div>
+                            <div style={{ height: '6px', borderRadius: '3px', background: '#D1FAE5', overflow: 'hidden' }}>
+                              <div style={{
+                                height: '100%', borderRadius: '3px',
+                                background: 'linear-gradient(90deg, #2D6A4F, #48BB78)',
+                                width: `${Math.round(checkedCount / todosItems.length * 100)}%`,
+                                transition: 'width 0.3s ease',
+                              }} />
+                            </div>
+                          </div>
+                        )}
 
                         {/* Botones de acción */}
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {/* Buscar TODO en Walmart */}
-                          <a
-                            href={`https://super.walmart.com.mx/search?q=${encodeURIComponent(todosItems.slice(0,3).join(' '))}` }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '6px',
-                              padding: '9px 16px', borderRadius: '10px',
-                              background: '#0071CE', color: 'white',
-                              textDecoration: 'none', fontSize: '13px', fontWeight: '600',
-                              boxShadow: '0 2px 8px rgba(0,113,206,0.3)',
-                            }}
-                          >
-                            🛒 Ver en Walmart
-                          </a>
-
-                          {/* WhatsApp */}
+                          {/* WhatsApp — solo items sin palomear */}
                           <a
                             href={`https://wa.me/?text=${textoWhatsApp}`}
                             target="_blank"
@@ -560,9 +625,14 @@ export default function PortalPage() {
                             }}
                           >
                             💬 Enviar por WhatsApp
+                            {checkedCount > 0 && (
+                              <span style={{ fontSize: '11px', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', padding: '1px 6px' }}>
+                                {uncheckedItems.length}
+                              </span>
+                            )}
                           </a>
 
-                          {/* Copiar */}
+                          {/* Copiar — solo items sin palomear */}
                           <button
                             onClick={copiarLista}
                             style={{
@@ -574,7 +644,28 @@ export default function PortalPage() {
                             }}
                           >
                             📋 Copiar lista
+                            {checkedCount > 0 && (
+                              <span style={{ fontSize: '11px', background: '#FAF0E6', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '1px 6px', color: '#9B7B65' }}>
+                                {uncheckedItems.length}
+                              </span>
+                            )}
                           </button>
+
+                          {/* Buscar en Walmart */}
+                          <a
+                            href={`https://super.walmart.com.mx/search?q=${encodeURIComponent((uncheckedItems.length > 0 ? uncheckedItems : todosItems).slice(0,3).join(' '))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '6px',
+                              padding: '9px 16px', borderRadius: '10px',
+                              background: '#0071CE', color: 'white',
+                              textDecoration: 'none', fontSize: '13px', fontWeight: '600',
+                              boxShadow: '0 2px 8px rgba(0,113,206,0.3)',
+                            }}
+                          >
+                            🛒 Ver en Walmart
+                          </a>
                         </div>
                       </div>
 
@@ -583,21 +674,27 @@ export default function PortalPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {listaCategorias.map((cat, ci) => {
                             const tieneTabla = cat.rawLines.some(r => r.trim().startsWith('|'))
+                            const catCheckedCount = tieneTabla ? 0 : cat.items.filter(i => itemsChecked.has(mkKey(cat.titulo, i))).length
+                            const catAllChecked = !tieneTabla && cat.items.length > 0 && catCheckedCount === cat.items.length
                             return (
-                              <div key={ci} className="card" style={{ padding: '0', overflow: 'hidden' }}>
+                              <div key={ci} className="card" style={{ padding: '0', overflow: 'hidden', opacity: catAllChecked ? 0.65 : 1, transition: 'opacity 0.2s' }}>
                                 {/* Header categoría */}
                                 <div style={{
                                   padding: '12px 20px',
-                                  background: ci % 2 === 0 ? '#2D6A4F' : '#1B5F8C',
+                                  background: catAllChecked ? '#6B7280' : (ci % 2 === 0 ? '#2D6A4F' : '#1B5F8C'),
                                   display: 'flex', alignItems: 'center', gap: '10px',
+                                  transition: 'background 0.2s',
                                 }}>
                                   <span style={{ fontSize: '18px' }}>
-                                    {['🥩','🥕','🌾','🥛','🫙','🧂','🍎','💰'][ci % 8]}
+                                    {catAllChecked ? '✅' : ['🥩','🥕','🌾','🥛','🫙','🧂','🍎','💰'][ci % 8]}
                                   </span>
-                                  <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '14px', fontWeight: '600', color: 'white', margin: 0 }}>{cat.titulo}</p>
+                                  <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '14px', fontWeight: '600', color: 'white', margin: 0 }}>
+                                    {cat.titulo}
+                                    {catAllChecked && <span style={{ fontSize: '11px', fontWeight: '400', marginLeft: '6px', opacity: 0.8 }}>✓ completo</span>}
+                                  </p>
                                   {!tieneTabla && cat.items.length > 0 && (
                                     <span style={{ marginLeft: 'auto', fontSize: '11px', background: 'rgba(255,255,255,0.2)', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
-                                      {cat.items.length}
+                                      {catCheckedCount > 0 ? `${catCheckedCount}/${cat.items.length}` : cat.items.length}
                                     </span>
                                   )}
                                   {/* Link buscar categoría en Walmart */}
@@ -608,7 +705,6 @@ export default function PortalPage() {
                                       rel="noopener noreferrer"
                                       onClick={e => e.stopPropagation()}
                                       style={{
-                                        marginLeft: tieneTabla ? 'auto' : '0',
                                         fontSize: '11px', color: 'rgba(255,255,255,0.8)',
                                         textDecoration: 'none', background: 'rgba(0,113,206,0.5)',
                                         padding: '2px 8px', borderRadius: '8px', fontWeight: '600',
@@ -627,38 +723,64 @@ export default function PortalPage() {
                                   ) : (
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
                                       {cat.items.map((item, ii) => {
-                                        // Extraer solo el nombre del producto (antes del "—" o "-")
+                                        const itemKey = mkKey(cat.titulo, item)
+                                        const checked = itemsChecked.has(itemKey)
                                         const nombre = item.split(/\s*[—–-]\s*/)[0].trim()
                                         return (
-                                          <a
+                                          <div
                                             key={ii}
-                                            href={`https://super.walmart.com.mx/search?q=${encodeURIComponent(nombre)}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            title={`Buscar "${nombre}" en Walmart`}
                                             style={{
-                                              display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                              background: '#FAF7F2', border: '1px solid #E8DDD0',
-                                              borderRadius: '20px', padding: '5px 12px',
-                                              fontSize: '13px', color: '#2C1810', fontWeight: '500',
-                                              textDecoration: 'none',
+                                              display: 'inline-flex', alignItems: 'center', gap: '0',
+                                              borderRadius: '20px',
+                                              border: checked ? '1.5px solid #2D6A4F' : '1px solid #E8DDD0',
+                                              overflow: 'hidden',
                                               transition: 'all 0.15s',
-                                            }}
-                                            onMouseEnter={e => {
-                                              (e.currentTarget as HTMLAnchorElement).style.background = '#EEF4FF'
-                                              ;(e.currentTarget as HTMLAnchorElement).style.borderColor = '#0071CE'
-                                              ;(e.currentTarget as HTMLAnchorElement).style.color = '#0071CE'
-                                            }}
-                                            onMouseLeave={e => {
-                                              (e.currentTarget as HTMLAnchorElement).style.background = '#FAF7F2'
-                                              ;(e.currentTarget as HTMLAnchorElement).style.borderColor = '#E8DDD0'
-                                              ;(e.currentTarget as HTMLAnchorElement).style.color = '#2C1810'
+                                              background: checked ? '#F0FAF5' : '#FAF7F2',
                                             }}
                                           >
-                                            <span style={{ fontSize: '9px', color: '#C4A35A' }}>●</span>
-                                            {item}
-                                            <span style={{ fontSize: '10px', opacity: 0.5 }}>🛒</span>
-                                          </a>
+                                            {/* Toggle palomear */}
+                                            <button
+                                              onClick={() => toggleItem(itemKey)}
+                                              title={checked ? 'Ya lo tengo ✓ (toca para desmarcar)' : 'Marcar como "ya lo tengo"'}
+                                              style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                padding: '5px 10px 5px 12px',
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                fontFamily: "'Lato',sans-serif", fontSize: '13px',
+                                                color: checked ? '#2D6A4F' : '#2C1810',
+                                                fontWeight: checked ? '600' : '500',
+                                                textDecoration: checked ? 'line-through' : 'none',
+                                                textDecorationColor: '#2D6A4F',
+                                              }}
+                                            >
+                                              <span style={{
+                                                fontSize: '14px',
+                                                color: checked ? '#2D6A4F' : '#D1C4B0',
+                                                transition: 'color 0.15s',
+                                              }}>
+                                                {checked ? '✓' : '○'}
+                                              </span>
+                                              {item}
+                                            </button>
+                                            {/* Link Walmart — solo si no está palomeado */}
+                                            {!checked && (
+                                              <a
+                                                href={`https://super.walmart.com.mx/search?q=${encodeURIComponent(nombre)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title={`Buscar "${nombre}" en Walmart`}
+                                                onClick={e => e.stopPropagation()}
+                                                style={{
+                                                  display: 'inline-flex', alignItems: 'center',
+                                                  padding: '5px 10px 5px 6px',
+                                                  color: '#9FAFBE', textDecoration: 'none', fontSize: '13px',
+                                                  borderLeft: '1px solid #E8DDD0',
+                                                }}
+                                              >
+                                                🛒
+                                              </a>
+                                            )}
+                                          </div>
                                         )
                                       })}
                                     </div>
@@ -674,11 +796,11 @@ export default function PortalPage() {
                         </div>
                       )}
 
-                      {/* Nota Walmart */}
+                      {/* Nota instrucciones */}
                       <div style={{ marginTop: '14px', padding: '12px 16px', borderRadius: '10px', background: '#EEF4FF', border: '1px solid #BFDBFE', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: '16px', flexShrink: 0 }}>ℹ️</span>
+                        <span style={{ fontSize: '16px', flexShrink: 0 }}>💡</span>
                         <p style={{ fontSize: '12px', color: '#1E40AF', margin: 0, lineHeight: '1.5' }}>
-                          Toca cualquier ingrediente o categoría para buscarlo en <strong>Walmart Super</strong>. También puedes enviar la lista por WhatsApp o copiarla para usarla en cualquier tienda en línea.
+                          Toca el <strong>nombre de un ingrediente</strong> para marcarlo como "ya lo tengo" ✓ — quedará tachado. El 🛒 abre <strong>Walmart Super</strong> para ese producto. Al compartir por WhatsApp o copiar, solo se incluyen los ingredientes que <em>aún necesitas comprar</em>.
                         </p>
                       </div>
                     </>
