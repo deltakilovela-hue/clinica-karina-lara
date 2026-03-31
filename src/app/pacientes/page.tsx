@@ -61,38 +61,47 @@ export default function PacientesPage() {
             </p>
           </div>
           <Link href="/pacientes/nuevo" className="btn-primary">
-            + Nuevo Paciente
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Nuevo Paciente
           </Link>
         </div>
 
         {/* ── Search + toggle ──────────────────────────────────── */}
         <div className="fade-in" style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'center' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', pointerEvents: 'none' }}>🔍</span>
+          <div className="search-wrapper">
+            <span className="search-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
             <input
-              className="input-field"
+              className="search-input"
               type="text"
               placeholder="Buscar por nombre, tutor o motivo de consulta..."
               value={filtro}
               onChange={e => setFiltro(e.target.value)}
-              style={{ paddingLeft: '40px' }}
             />
           </div>
           {/* Vista toggle */}
           <div style={{ display: 'flex', border: '1.5px solid #E8DDD0', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
-            {(['lista', 'grid'] as const).map(v => (
+            {([
+              { v: 'lista' as const, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
+              { v: 'grid' as const,  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg> },
+            ]).map(({ v, icon }) => (
               <button
                 key={v}
                 onClick={() => setVista(v)}
                 style={{
-                  padding: '9px 14px', border: 'none', cursor: 'pointer',
+                  padding: '9px 13px', border: 'none', cursor: 'pointer',
                   background: vista === v ? '#F5E8EB' : 'white',
                   color: vista === v ? '#7B1B2A' : '#9B7B65',
-                  fontSize: '16px', fontWeight: '600',
+                  display: 'flex', alignItems: 'center',
                   transition: 'all 0.15s',
                 }}
               >
-                {v === 'lista' ? '☰' : '⊞'}
+                {icon}
               </button>
             ))}
           </div>
@@ -100,25 +109,35 @@ export default function PacientesPage() {
 
         {/* ── Results ──────────────────────────────────────────── */}
         {filtrados.length === 0 ? (
-          <div className="card fade-in" style={{ padding: '60px', textAlign: 'center', border: '2px dashed #E8DDD0' }}>
-            <div style={{ fontSize: '44px', marginBottom: '16px' }}>{filtro ? '🔍' : '👶'}</div>
+          <div className="card fade-in" style={{ padding: '60px', textAlign: 'center', border: '2px dashed #E8DDD0', boxShadow: 'none' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#F5E8EB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#7B1B2A' }}>
+              {filtro
+                ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+              }
+            </div>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', marginBottom: '8px' }}>
               {filtro ? 'Sin resultados' : 'Sin pacientes registrados'}
             </p>
             <p style={{ color: '#9B7B65', fontSize: '14px', marginBottom: '24px' }}>
               {filtro ? `No se encontró "${filtro}"` : 'Registra tu primer paciente para comenzar'}
             </p>
-            {!filtro && <Link href="/pacientes/nuevo" className="btn-primary">+ Crear Primer Paciente</Link>}
+            {!filtro && (
+              <Link href="/pacientes/nuevo" className="btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Crear Primer Paciente
+              </Link>
+            )}
           </div>
         ) : vista === 'lista' ? (
           /* ── Vista lista ─────────────────────────────────── */
           <div className="card fade-in" style={{ overflow: 'hidden' }}>
             {/* Encabezado tabla */}
             <div style={{ display: 'flex', padding: '10px 24px', background: '#FFFAF7', borderBottom: '1px solid #F2EDE4' }}>
-              <span style={{ flex: 3, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#C4A35A' }}>Paciente</span>
-              <span style={{ flex: 2, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#C4A35A' }}>Tutor</span>
-              <span style={{ flex: 2, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#C4A35A' }}>Motivo</span>
-              <span style={{ flex: 1, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#C4A35A', textAlign: 'right' }}>Fecha</span>
+              <span style={{ flex: 3, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#8B6914' }}>Paciente</span>
+              <span style={{ flex: 2, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#8B6914' }}>Tutor</span>
+              <span style={{ flex: 2, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#8B6914' }}>Motivo</span>
+              <span style={{ flex: 1, fontSize: '10px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#8B6914', textAlign: 'right' }}>Fecha</span>
             </div>
             {filtrados.map((p, i) => (
               <Link
@@ -154,7 +173,7 @@ export default function PacientesPage() {
                       {p.fechaCreacion.toDate().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
                     </p>
                   )}
-                  <span style={{ fontSize: '12px', color: '#C9B8A8' }}>→</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9B8A8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </div>
               </Link>
             ))}
