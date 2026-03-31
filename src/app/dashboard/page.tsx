@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
@@ -11,7 +11,7 @@ import Sidebar from '@/components/Sidebar'
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
 // ─── Íconos SVG de módulos ────────────────────────────────────────────────────
-const ModuloIconos: Record<string, JSX.Element> = {
+const ModuloIconos: Record<string, ReactElement> = {
   pacientes: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
