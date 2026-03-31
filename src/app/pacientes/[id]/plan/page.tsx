@@ -8,6 +8,7 @@ import { obtenerPaciente, Paciente } from '@/lib/pacientes'
 import { collection, addDoc, getDocs, orderBy, query, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
+import PasoNavegacion from '@/components/PasoNavegacion'
 
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
@@ -634,6 +635,9 @@ export default function PlanPage() {
 
           </div>
         )}
+
+        {/* ── Navegación entre secciones ── */}
+        <PasoNavegacion pacienteId={id} pasoActual="plan" />
       </main>
     </div>
   )

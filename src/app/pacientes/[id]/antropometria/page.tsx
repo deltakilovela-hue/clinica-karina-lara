@@ -9,6 +9,7 @@ import { collection, addDoc, getDocs, orderBy, query, Timestamp } from 'firebase
 import { db } from '@/lib/firebase'
 import { calcularPercentilPeso, calcularPercentilTalla, calcularIMC, edadEnMeses } from '@/lib/percentiles'
 import Link from 'next/link'
+import PasoNavegacion from '@/components/PasoNavegacion'
 
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
@@ -382,6 +383,9 @@ export default function AntropometriaPage() {
             </div>
           </div>
         )}
+
+        {/* ── Navegación entre secciones ── */}
+        <PasoNavegacion pacienteId={id} pasoActual="antropometria" />
       </main>
     </div>
   )

@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { Paciente } from '@/lib/pacientes'
+import { Paciente, actualizarPaciente } from '@/lib/pacientes'
 
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
@@ -159,6 +159,46 @@ export default function PortalPage() {
   const [planActual, setPlanActual] = useState('')
   const [fechaPlan, setFechaPlan] = useState('')
   const [mediciones, setMediciones] = useState<Record<string, unknown>[]>([])
+
+  // ── Cambio de contraseña ──────────────────────────────────────────────────
+  const [passActual, setPassActual]     = useState('')
+  const [passNueva, setPassNueva]       = useState('')
+  const [passConfirmar, setPassConfirmar] = useState('')
+  const [verPassActual, setVerPassActual] = useState(false)
+  const [verPassNueva, setVerPassNueva]   = useState(false)
+  const [cambiandoPass, setCambiandoPass] = useState(false)
+  const [passExito, setPassExito]         = useState(false)
+  const [passError, setPassError]         = useState('')
+
+  const cambiarContrasena = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPassError(''); setPassExito(false)
+    if (passNueva.length < 6) { setPassError('La contraseña debe tener al menos 6 caracteres.'); return }
+    if (passNueva !== passConfirmar) { setPassError('Las contraseñas nuevas no coinciden.'); return }
+    const user = auth.currentUser
+    if (!user || !user.email) { setPassError('Sesión expirada. Recarga la página.'); return }
+    setCambiandoPass(true)
+    try {
+      // Re-autenticar primero
+      const cred = EmailAuthProvider.credential(user.email, passActual)
+      await reauthenticateWithCredential(user, cred)
+      // Cambiar en Firebase Auth
+      await updatePassword(user, passNueva)
+      // Guardar en Firestore para que Karina pueda verla
+      if (paciente?.id) await actualizarPaciente(paciente.id, { passwordAcceso: passNueva })
+      setPassExito(true)
+      setPassActual(''); setPassNueva(''); setPassConfirmar('')
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        setPassError('La contraseña actual es incorrecta.')
+      } else if (code === 'auth/too-many-requests') {
+        setPassError('Demasiados intentos. Espera unos minutos.')
+      } else {
+        setPassError('Error al cambiar la contraseña. Intenta de nuevo.')
+      }
+    } finally { setCambiandoPass(false) }
+  }
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -859,6 +899,96 @@ export default function PortalPage() {
               ))}
             </div>
           )}
+
+          {/* ── CAMBIAR CONTRASEÑA ─────────────────────────────── */}
+          <div className="card fade-in" style={{ marginTop: '20px', overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #F2EDE4' }}>
+              <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '16px', fontWeight: '600', color: '#2C1810', marginBottom: '3px' }}>
+                Cambiar contraseña
+              </p>
+              <p style={{ fontSize: '12px', color: '#9B7B65' }}>Actualiza la contraseña de acceso a tu portal</p>
+            </div>
+
+            <div style={{ padding: '22px 24px' }}>
+              {passExito ? (
+                <div style={{ background: '#F0FAF5', border: '1px solid #B7E3CA', borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '24px', marginBottom: '8px' }}>✅</p>
+                  <p style={{ fontFamily: "'Playfair Display',serif", fontSize: '15px', color: '#2D6A4F', marginBottom: '6px' }}>¡Contraseña actualizada!</p>
+                  <p style={{ fontSize: '13px', color: '#52976A' }}>Tu nueva contraseña ya está activa.</p>
+                  <button
+                    onClick={() => setPassExito(false)}
+                    style={{ marginTop: '14px', fontSize: '12px', color: '#9B7B65', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Lato',sans-serif", textDecoration: 'underline' }}
+                  >Cambiar de nuevo</button>
+                </div>
+              ) : (
+                <form onSubmit={cambiarContrasena} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Contraseña actual */}
+                  {[
+                    { label: 'Contraseña actual', val: passActual, set: setPassActual, ver: verPassActual, setVer: setVerPassActual },
+                    { label: 'Nueva contraseña', val: passNueva, set: setPassNueva, ver: verPassNueva, setVer: setVerPassNueva },
+                    { label: 'Confirmar nueva contraseña', val: passConfirmar, set: setPassConfirmar, ver: verPassNueva, setVer: setVerPassNueva },
+                  ].map((f, idx) => (
+                    <div key={idx}>
+                      <label style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#9B7B65', display: 'block', marginBottom: '6px' }}>
+                        {f.label}
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={f.ver ? 'text' : 'password'}
+                          value={f.val}
+                          onChange={e => f.set(e.target.value)}
+                          required
+                          minLength={idx === 0 ? 1 : 6}
+                          placeholder={idx === 0 ? 'Tu contraseña actual' : '••••••••'}
+                          style={{
+                            width: '100%', padding: '11px 42px 11px 14px', borderRadius: '10px',
+                            border: '1.5px solid #E8DDD0', background: '#FDFAF7',
+                            fontSize: '14px', color: '#2C1810', outline: 'none',
+                            fontFamily: "'Lato',sans-serif", boxSizing: 'border-box' as const,
+                          }}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#7B1B2A'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(123,27,42,0.08)' }}
+                          onBlur={e => { e.currentTarget.style.borderColor = '#E8DDD0'; e.currentTarget.style.boxShadow = 'none' }}
+                        />
+                        <button type="button" onClick={() => f.setVer(!f.ver)}
+                          style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9B7B65', padding: 0, display: 'flex' }}>
+                          {f.ver
+                            ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          }
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {passError && (
+                    <div style={{ padding: '11px 14px', borderRadius: '9px', background: '#FEF2F3', border: '1px solid #F5C5C9', color: '#9B2335', fontSize: '13px', display: 'flex', gap: '8px' }}>
+                      <span>⚠️</span><span>{passError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={cambiandoPass || !passActual || !passNueva || !passConfirmar}
+                    style={{
+                      padding: '12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
+                      border: 'none', cursor: cambiandoPass ? 'not-allowed' : 'pointer',
+                      background: (!passActual || !passNueva || !passConfirmar) ? '#E8DDD0' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                      color: (!passActual || !passNueva || !passConfirmar) ? '#9B7B65' : 'white',
+                      fontFamily: "'Lato',sans-serif",
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      boxShadow: (passActual && passNueva && passConfirmar && !cambiandoPass) ? '0 4px 16px rgba(123,27,42,0.3)' : 'none',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {cambiandoPass
+                      ? <><div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Actualizando...</>
+                      : '🔒 Actualizar contraseña'
+                    }
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
 
           {/* Footer */}
           <div style={{ marginTop: '36px', padding: '14px 18px', borderRadius: '12px', background: '#FDF6E3', border: '1px solid #E8DDD0', textAlign: 'center' }}>

@@ -8,6 +8,7 @@ import { obtenerPaciente, Paciente } from '@/lib/pacientes'
 import { collection, addDoc, updateDoc, doc, getDocs, orderBy, query, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
+import PasoNavegacion from '@/components/PasoNavegacion'
 
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 type Step = 1 | 2 | 3
@@ -618,6 +619,11 @@ export default function HistoriaClinicaPage() {
             )
             })}
           </div>
+        )}
+
+        {/* ── Navegación entre secciones ── */}
+        {!mostrarForm && (
+          <PasoNavegacion pacienteId={id} pasoActual="historia" />
         )}
       </main>
     </div>

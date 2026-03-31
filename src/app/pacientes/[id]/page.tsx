@@ -20,6 +20,8 @@ export default function DetallePacientePage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [inicializando, setInicializando] = useState(true)
   const [descargando, setDescargando] = useState(false)
+  const [mostrarPass, setMostrarPass] = useState(false)
+  const [copiado, setCopiado] = useState<string | null>(null)
   const reporteRef = useRef<HTMLDivElement>(null)
 
   // Datos para el reporte
@@ -130,6 +132,13 @@ export default function DetallePacientePage() {
       botones.forEach(b => ((b as HTMLElement).style.display = ''))
       setDescargando(false)
     }
+  }
+
+  const copiar = (texto: string, clave: string) => {
+    navigator.clipboard.writeText(texto).then(() => {
+      setCopiado(clave)
+      setTimeout(() => setCopiado(null), 2000)
+    }).catch(() => {})
   }
 
   const formatFecha = (ts: unknown) => {
@@ -244,16 +253,70 @@ export default function DetallePacientePage() {
             </div>
 
             {paciente.correoAcceso && (
-              <div style={{ marginTop: '16px', background: '#F0FAF4', borderRadius: '12px', padding: '18px', border: '1px solid #95D5A8' }}>
-                <p style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#2D6A4F', marginBottom: '10px' }}>ACCESO PORTAL PADRES</p>
-                <div style={{ display: 'flex', gap: '24px' }}>
-                  <div>
-                    <p style={{ fontSize: '12px', color: '#6B4F3A', marginBottom: '4px' }}>Usuario</p>
-                    <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#2C1810' }}>{paciente.correoAcceso}</p>
+              <div style={{ marginTop: '16px', background: '#F0FAF4', borderRadius: '14px', padding: '18px 20px', border: '1px solid #95D5A8' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#2D6A4F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                    </div>
+                    <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#2D6A4F' }}>Credenciales de Portal</p>
                   </div>
-                  <div>
-                    <p style={{ fontSize: '12px', color: '#6B4F3A', marginBottom: '4px' }}>Contraseña</p>
-                    <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#2C1810' }}>{paciente.passwordAcceso}</p>
+                  <span style={{ fontSize: '10px', background: '#B7E3CA', color: '#2D6A4F', padding: '3px 8px', borderRadius: '20px', fontWeight: '700' }}>Acceso tutor</span>
+                </div>
+
+                {/* Usuario */}
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: '700', color: '#6B4F3A', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '5px' }}>Usuario (correo)</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', borderRadius: '9px', padding: '9px 12px', border: '1px solid #B7E3CA' }}>
+                    <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#2C1810', flex: 1, margin: 0 }}>{paciente.correoAcceso}</p>
+                    <button
+                      onClick={() => copiar(paciente.correoAcceso!, 'correo')}
+                      title="Copiar correo"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '6px', color: copiado === 'correo' ? '#2D6A4F' : '#9B7B65', fontSize: '11px', fontWeight: '700', fontFamily: "'Lato', sans-serif", display: 'flex', alignItems: 'center', gap: '4px', transition: 'color 0.15s' }}
+                    >
+                      {copiado === 'correo' ? (
+                        <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Copiado</>
+                      ) : (
+                        <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contraseña */}
+                <div>
+                  <p style={{ fontSize: '10px', fontWeight: '700', color: '#6B4F3A', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '5px' }}>Contraseña</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', borderRadius: '9px', padding: '9px 12px', border: '1px solid #B7E3CA' }}>
+                    <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#2C1810', flex: 1, letterSpacing: mostrarPass ? '0' : '3px', margin: 0 }}>
+                      {mostrarPass ? (paciente.passwordAcceso || '—') : '••••••••'}
+                    </p>
+                    {/* Show/hide toggle */}
+                    <button
+                      onClick={() => setMostrarPass(v => !v)}
+                      title={mostrarPass ? 'Ocultar' : 'Mostrar'}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#9B7B65', display: 'flex', alignItems: 'center' }}
+                    >
+                      {mostrarPass ? (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      ) : (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      )}
+                    </button>
+                    {/* Copy */}
+                    <button
+                      onClick={() => copiar(paciente.passwordAcceso || '', 'pass')}
+                      title="Copiar contraseña"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '6px', color: copiado === 'pass' ? '#2D6A4F' : '#9B7B65', fontSize: '11px', fontWeight: '700', fontFamily: "'Lato', sans-serif", display: 'flex', alignItems: 'center', gap: '4px', transition: 'color 0.15s' }}
+                    >
+                      {copiado === 'pass' ? (
+                        <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Copiado</>
+                      ) : (
+                        <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar</>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
