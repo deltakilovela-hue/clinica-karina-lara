@@ -95,50 +95,33 @@ export default function PlanPage() {
     setErrorMenu('')
     setDriveLink(null)
     try {
-      // 1. Generar el Excel desde la API
-      const res = await fetch(`/api/menu/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paciente, planTexto: planActual, historia }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setErrorMenu(err.error || 'Error al generar el menú')
-        return
-      }
-
-      // 2. Convertir blob → base64
-      const blob = await res.blob()
-      const arrayBuffer = await blob.arrayBuffer()
-      const base64 = Buffer.from(arrayBuffer).toString('base64')
-
-      // 3. Subir a Google Drive (se convierte automáticamente a Google Sheets)
-      const fecha = new Date().toISOString().slice(0, 10)
-      const fileName = `Menu_Semanal_${paciente.nombre}_${fecha}`
-      const uploadRes = await fetch('/api/upload-drive', {
+      // Escribir directamente en Google Sheets (sin subir archivo)
+      // La hoja es TUYA → usa tu cuota, no la de la cuenta de servicio
+      const fecha = new Date().toLocaleDateString('es-MX')
+      const res = await fetch('/api/write-menu-sheet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          base64,
-          fileName,
-          mimeType: 'application/vnd.ms-excel',
-          nombrePaciente: paciente.nombre,
+          pacienteNombre: paciente.nombre,
+          planTexto: planActual,
+          fecha,
         }),
       })
-      const uploadData = await uploadRes.json()
+      const data = await res.json()
 
-      if (!uploadData.ok) {
-        setErrorMenu(uploadData.error || 'Error al subir a Google Drive')
+      if (!data.ok) {
+        setErrorMenu(data.error || 'Error al guardar en Google Sheets')
         return
       }
 
-      setDriveLink(uploadData.link)
+      setDriveLink(data.link)
 
-      // 4. Guardar link en Firestore para acceso rápido
+      // Guardar link en Firestore para acceso rápido
+      const fileName = `Menu_Semanal_${paciente.nombre}_${new Date().toISOString().slice(0, 10)}`
       await addDoc(collection(db, `pacientes/${id}/menus`), {
         fileName,
-        driveLink: uploadData.link,
-        fileId: uploadData.fileId,
+        driveLink: data.link,
+        hoja: data.hoja,
         fechaCreacion: Timestamp.now(),
       })
       await cargarMenus()
