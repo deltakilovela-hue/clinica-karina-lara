@@ -9,6 +9,7 @@ import { collection, addDoc, getDocs, orderBy, query, Timestamp } from 'firebase
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import PasoNavegacion from '@/components/PasoNavegacion'
+import { crearCita } from '@/lib/citas'
 
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
@@ -36,6 +37,12 @@ export default function PlanPage() {
   const [mensajeChat, setMensajeChat] = useState('')
   const [enviandoChat, setEnviandoChat] = useState(false)
   const [historialChat, setHistorialChat] = useState<MensajeChat[]>([])
+
+  // ── Próxima consulta ─────────────────────────────────────────────────────
+  const [showProxCita, setShowProxCita] = useState(false)
+  const [proxForm, setProxForm] = useState({ fecha: '', hora: '09:00', tipo: 'Seguimiento', notas: '' })
+  const [guardandoCita, setGuardandoCita] = useState(false)
+  const [citaExito, setCitaExito] = useState(false)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -122,6 +129,12 @@ export default function PlanPage() {
       setHistorialChat([])
       await addDoc(collection(db, `pacientes/${id}/planes`), { texto: data.plan, fechaCreacion: Timestamp.now() })
       await cargarPlanes()
+      // Sugerir próxima cita: 4 semanas después por defecto
+      const proxFecha = new Date()
+      proxFecha.setDate(proxFecha.getDate() + 28)
+      setProxForm({ fecha: proxFecha.toISOString().slice(0, 10), hora: '09:00', tipo: 'Seguimiento', notas: '' })
+      setCitaExito(false)
+      setShowProxCita(true)
     } catch (e) { setError('Error de conexión.'); console.error(e) }
     finally { setGenerando(false) }
   }
@@ -148,6 +161,26 @@ export default function PlanPage() {
       }
     } catch (e) { console.error(e) }
     finally { setEnviandoChat(false) }
+  }
+
+  // ─── Guardar próxima cita ────────────────────────────────────────────────────
+  const guardarProxCita = async () => {
+    if (!paciente || !proxForm.fecha) return
+    setGuardandoCita(true)
+    try {
+      await crearCita({
+        pacienteId: id,
+        pacienteNombre: paciente.nombre,
+        tutorNombre: paciente.tutor || '',
+        fecha: proxForm.fecha,
+        hora: proxForm.hora,
+        tipo: proxForm.tipo,
+        notas: proxForm.notas || `Seguimiento post plan nutricional`,
+        estado: 'pendiente',
+      })
+      setCitaExito(true)
+    } catch (e) { console.error(e) }
+    finally { setGuardandoCita(false) }
   }
 
   // ─── Función para descargar PDF limpio (sin botones) ─────────────────────────
@@ -639,6 +672,114 @@ export default function PlanPage() {
         {/* ── Navegación entre secciones ── */}
         <PasoNavegacion pacienteId={id} pasoActual="plan" />
       </main>
+
+      {/* ════════════════════════════════════════════════════════════════════
+          MODAL: PROGRAMAR PRÓXIMA CONSULTA
+      ════════════════════════════════════════════════════════════════════ */}
+      {showProxCita && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(44,24,16,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ background: 'white', borderRadius: '24px', padding: '36px', maxWidth: '460px', width: '100%', boxShadow: '0 16px 56px rgba(44,24,16,0.22)', fontFamily: "'Lato', sans-serif" }}>
+
+            {citaExito ? (
+              /* ── Estado éxito ── */
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#D8F3DC', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', color: '#2C1810', marginBottom: '8px' }}>¡Cita agendada!</h3>
+                <p style={{ fontSize: '14px', color: '#6B4F3A', marginBottom: '6px' }}>
+                  <strong>{paciente?.nombre}</strong>
+                </p>
+                <p style={{ fontSize: '14px', color: '#9B7B65', marginBottom: '24px' }}>
+                  {new Date(proxForm.fecha + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })} · {proxForm.hora}
+                </p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setShowProxCita(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                    Cerrar
+                  </button>
+                  <Link href="/citas" onClick={() => setShowProxCita(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', background: 'linear-gradient(135deg, #2D6A4F, #40916C)', color: 'white', fontSize: '14px', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Ver calendario
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              /* ── Formulario ── */
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #8B6914, #C4A35A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div>
+                      <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: '#2C1810', margin: 0 }}>Próxima Consulta</h3>
+                      <p style={{ fontSize: '12px', color: '#9B7B65', margin: 0 }}>{paciente?.nombre}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowProxCita(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9B7B65' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+
+                <p style={{ fontSize: '13px', color: '#9B7B65', marginBottom: '22px' }}>Plan nutricional generado ✓ · Agenda la próxima cita ahora</p>
+
+                {/* Fecha + hora */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase' as const, letterSpacing: '0.8px', marginBottom: '6px' }}>Fecha *</label>
+                    <input type="date" value={proxForm.fecha} onChange={e => setProxForm(f => ({ ...f, fecha: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #E8DDD0', fontSize: '14px', color: '#2C1810', outline: 'none', colorScheme: 'light', boxSizing: 'border-box' as const, fontFamily: "'Lato', sans-serif" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase' as const, letterSpacing: '0.8px', marginBottom: '6px' }}>Hora *</label>
+                    <input type="time" value={proxForm.hora} onChange={e => setProxForm(f => ({ ...f, hora: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #E8DDD0', fontSize: '14px', color: '#2C1810', outline: 'none', colorScheme: 'light', boxSizing: 'border-box' as const, fontFamily: "'Lato', sans-serif" }} />
+                  </div>
+                </div>
+
+                {/* Tipo */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase' as const, letterSpacing: '0.8px', marginBottom: '8px' }}>Tipo de consulta</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                    {['Seguimiento', 'Revisión de plan', 'Primera consulta', 'Urgencia'].map(t => (
+                      <button key={t} onClick={() => setProxForm(f => ({ ...f, tipo: t }))} style={{
+                        padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+                        background: proxForm.tipo === t ? '#7B1B2A' : 'white',
+                        color: proxForm.tipo === t ? 'white' : '#6B4F3A',
+                        border: proxForm.tipo === t ? '1.5px solid #7B1B2A' : '1.5px solid #E8DDD0',
+                      }}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notas */}
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase' as const, letterSpacing: '0.8px', marginBottom: '6px' }}>Notas (opcional)</label>
+                  <textarea value={proxForm.notas} onChange={e => setProxForm(f => ({ ...f, notas: e.target.value }))} rows={2}
+                    placeholder="Instrucciones, seguimiento de indicadores…"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #E8DDD0', fontSize: '13px', color: '#2C1810', outline: 'none', resize: 'none', boxSizing: 'border-box' as const, fontFamily: "'Lato', sans-serif" }} />
+                </div>
+
+                {/* Botones */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setShowProxCita(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>
+                    Después
+                  </button>
+                  <button onClick={guardarProxCita} disabled={guardandoCita || !proxForm.fecha} style={{
+                    flex: 2, padding: '12px', borderRadius: '10px', border: 'none',
+                    background: guardandoCita || !proxForm.fecha ? '#E8DDD0' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                    color: guardandoCita || !proxForm.fecha ? '#9B7B65' : 'white',
+                    fontSize: '14px', fontWeight: '700', cursor: guardandoCita || !proxForm.fecha ? 'not-allowed' : 'pointer',
+                    fontFamily: "'Lato', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  }}>
+                    {guardandoCita ? <><div style={{ width: '14px', height: '14px', border: '2px solid #9B7B65', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Agendando…</> : '📅 Agendar cita'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

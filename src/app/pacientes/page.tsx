@@ -17,6 +17,8 @@ export default function PacientesPage() {
   const [cargando, setCargando] = useState(true)
   const [usuario, setUsuario] = useState('')
   const [vista, setVista] = useState<'lista' | 'grid'>('lista')
+  const [sincronizando, setSincronizando] = useState(false)
+  const [msgSync, setMsgSync] = useState<{ ok: boolean; texto: string } | null>(null)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -33,6 +35,39 @@ export default function PacientesPage() {
     p.tutor.toLowerCase().includes(filtro.toLowerCase()) ||
     p.motivoConsulta.toLowerCase().includes(filtro.toLowerCase())
   )
+
+  const sincronizarSheets = async () => {
+    setSincronizando(true)
+    setMsgSync(null)
+    try {
+      const filas = pacientes.map(p => ({
+        id: p.id,
+        nombrePaciente: p.nombre,
+        fechaNacimiento: p.fechaNacimiento,
+        sexo: p.sexo,
+        tutorNombre: p.tutor,
+        tutorTelefono: p.telefono,
+        tutorCorreo: p.correo,
+        diagnostico: p.motivoConsulta,
+      }))
+      const res = await fetch('/api/sync-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pacientes: filas }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setMsgSync({ ok: true, texto: data.mensaje || `${filas.length} pacientes sincronizados.` })
+      } else {
+        setMsgSync({ ok: false, texto: data.error || 'Error al sincronizar.' })
+      }
+    } catch (err) {
+      setMsgSync({ ok: false, texto: String(err) })
+    } finally {
+      setSincronizando(false)
+      setTimeout(() => setMsgSync(null), 6000)
+    }
+  }
 
   if (cargando) return (
     <div className="loading-screen">
@@ -60,12 +95,60 @@ export default function PacientesPage() {
               {pacientes.length} paciente{pacientes.length !== 1 ? 's' : ''} registrado{pacientes.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <Link href="/pacientes/nuevo" className="btn-primary">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Nuevo Paciente
-          </Link>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {/* Botón Sincronizar Google Sheets */}
+            <button
+              onClick={sincronizarSheets}
+              disabled={sincronizando}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '7px',
+                padding: '10px 16px', borderRadius: '10px', fontWeight: '600',
+                fontSize: '13px', cursor: sincronizando ? 'not-allowed' : 'pointer',
+                border: '1.5px solid #34A853',
+                background: sincronizando ? '#F0FBF3' : 'white',
+                color: '#1E8E3E',
+                transition: 'all 0.15s',
+                opacity: sincronizando ? 0.7 : 1,
+              }}
+            >
+              {sincronizando ? (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                  </svg>
+                  Sincronizando...
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                  Google Sheets
+                </>
+              )}
+            </button>
+            <Link href="/pacientes/nuevo" className="btn-primary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nuevo Paciente
+            </Link>
+          </div>
+          {/* Mensaje de sync */}
+          {msgSync && (
+            <div style={{
+              position: 'fixed', bottom: '28px', right: '28px', zIndex: 9999,
+              background: msgSync.ok ? '#2D6A4F' : '#9B2335',
+              color: 'white', borderRadius: '12px',
+              padding: '14px 20px', fontSize: '13px', fontWeight: '600',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+              display: 'flex', alignItems: 'center', gap: '8px',
+              animation: 'fadeUp 0.2s ease',
+            }}>
+              {msgSync.ok ? '✓' : '✗'} {msgSync.texto}
+            </div>
+          )}
         </div>
 
         {/* ── Search + toggle ──────────────────────────────────── */}

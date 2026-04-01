@@ -283,20 +283,29 @@ export default function HistoriaClinicaPage() {
               </div>
             </div>
 
-            {/* Steps */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '28px' }}>
-              {steps.map((s, i) => (
-                <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{
-                      width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700',
-                      background: step === s.n ? '#7B1B2A' : step > s.n ? '#D8F3DC' : '#F2EDE4',
-                      color: step === s.n ? 'white' : step > s.n ? '#2D6A4F' : '#9B7B65',
-                    }}>{step > s.n ? '✓' : s.n}</div>
-                    <span style={{ fontSize: '13px', color: step === s.n ? '#2C1810' : '#9B7B65', fontWeight: step === s.n ? '600' : '400' }}>{s.l}</span>
-                  </div>
-                  {i < 2 && <div style={{ width: '24px', height: '1px', background: '#E8DDD0', margin: '0 4px' }} />}
-                </div>
+            {/* ── Tabs de navegación ── */}
+            <div style={{ display: 'flex', background: '#F2EDE4', borderRadius: '12px', padding: '4px', gap: '4px', marginBottom: '28px' }}>
+              {steps.map(s => (
+                <button
+                  key={s.n}
+                  onClick={() => setStep(s.n as Step)}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: '9px', fontSize: '13px', fontWeight: '600',
+                    border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+                    background: step === s.n ? 'white' : 'transparent',
+                    color: step === s.n ? '#7B1B2A' : '#9B7B65',
+                    boxShadow: step === s.n ? '0 1px 6px rgba(44,24,16,0.12)' : 'none',
+                    transition: 'all 0.15s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  }}
+                >
+                  {step > s.n ? (
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#D8F3DC', color: '#2D6A4F', fontSize: '11px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', flexShrink: 0 }}>✓</span>
+                  ) : (
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: step === s.n ? '#7B1B2A' : '#E8DDD0', color: step === s.n ? 'white' : '#9B7B65', fontSize: '11px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0 }}>{s.n}</span>
+                  )}
+                  {s.l}
+                </button>
               ))}
             </div>
 
@@ -423,10 +432,24 @@ export default function HistoriaClinicaPage() {
                       <div key={t.id} style={{ background: '#FAF7F2', borderRadius: '12px', border: '1px solid #E8DDD0', padding: '14px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                           <span style={{ fontSize: '18px' }}>{t.emoji}</span>
-                          <div>
+                          <div style={{ flex: 1 }}>
                             <p style={{ fontSize: '13px', fontWeight: '700', color: '#2C1810' }}>{t.label}</p>
                             <p style={{ fontSize: '11px', color: '#9B7B65' }}>ej. {t.desc}</p>
                           </div>
+                          <a
+                            href={`/texturas/${t.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              fontSize: '11px', fontWeight: '700', color: '#7B1B2A',
+                              background: 'white', border: '1.5px solid #D4A0A8',
+                              borderRadius: '8px', padding: '5px 10px',
+                              textDecoration: 'none', flexShrink: 0,
+                            }}
+                          >
+                            🔍 Ver guía
+                          </a>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                           <div>
