@@ -122,6 +122,7 @@ export default function PlanPage() {
           base64,
           fileName,
           mimeType: 'application/vnd.ms-excel',
+          nombrePaciente: paciente.nombre,
         }),
       })
       const uploadData = await uploadRes.json()

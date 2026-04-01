@@ -73,23 +73,72 @@ async function obtenerAccessToken(sa: ServiceAccountKey): Promise<string> {
   return data.access_token as string
 }
 
-// ── Subir archivo a Drive ─────────────────────────────────────────────────────
-async function subirADrive(
+// ── Buscar archivo existente en la carpeta por nombre base del paciente ───────
+async function buscarArchivoExistente(
+  token: string,
+  folderId: string,
+  nombreBase: string // ej: "Menu_Semanal_Valentina Lopez"
+): Promise<string | null> {
+  const q = encodeURIComponent(
+    `'${folderId}' in parents and name contains '${nombreBase.replace(/'/g, "\\'")}' and trashed = false`
+  )
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=5`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (!res.ok) return null
+  const data = await res.json()
+  return data.files?.[0]?.id ?? null
+}
+
+// ── Actualizar contenido de archivo existente ─────────────────────────────────
+async function actualizarArchivo(
+  token: string,
+  fileId: string,
+  fileName: string,
+  fileBuffer: Buffer,
+  sourceMimeType: string
+): Promise<{ fileId: string; link: string }> {
+  const boundary = '-------GoogleDriveUpdateBoundary'
+  const delimiter = `\r\n--${boundary}\r\n`
+  const closeDelimiter = `\r\n--${boundary}--`
+
+  const metadataPart = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name: fileName })}`
+  const filePart = `${delimiter}Content-Type: ${sourceMimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${fileBuffer.toString('base64')}${closeDelimiter}`
+
+  const res = await fetch(
+    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id,webViewLink`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary="${boundary}"`,
+      },
+      body: metadataPart + filePart,
+    }
+  )
+  if (!res.ok) throw new Error(`Drive update error: ${await res.text()}`)
+  const result = await res.json()
+  return {
+    fileId: result.id,
+    link: result.webViewLink || `https://docs.google.com/spreadsheets/d/${result.id}/edit`,
+  }
+}
+
+// ── Crear archivo nuevo en Drive ──────────────────────────────────────────────
+async function crearArchivo(
   token: string,
   folderId: string,
   fileName: string,
   fileBuffer: Buffer,
   sourceMimeType: string
 ): Promise<{ fileId: string; link: string }> {
-  // Metadata del archivo
   const metadata = {
     name: fileName,
     parents: [folderId],
-    // Convertir automáticamente a Google Sheets
     mimeType: 'application/vnd.google-apps.spreadsheet',
   }
 
-  // Construir multipart/related body
   const boundary = '-------GoogleDriveUploadBoundary'
   const delimiter = `\r\n--${boundary}\r\n`
   const closeDelimiter = `\r\n--${boundary}--`
@@ -97,9 +146,7 @@ async function subirADrive(
   const metadataPart = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`
   const filePart = `${delimiter}Content-Type: ${sourceMimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${fileBuffer.toString('base64')}${closeDelimiter}`
 
-  const body = metadataPart + filePart
-
-  const uploadRes = await fetch(
+  const res = await fetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
     {
       method: 'POST',
@@ -107,19 +154,38 @@ async function subirADrive(
         Authorization: `Bearer ${token}`,
         'Content-Type': `multipart/related; boundary="${boundary}"`,
       },
-      body,
+      body: metadataPart + filePart,
     }
   )
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text()
-    throw new Error(`Drive upload error: ${err}`)
-  }
-
-  const result = await uploadRes.json()
+  if (!res.ok) throw new Error(`Drive upload error: ${await res.text()}`)
+  const result = await res.json()
   return {
     fileId: result.id,
     link: result.webViewLink || `https://docs.google.com/spreadsheets/d/${result.id}/edit`,
+  }
+}
+
+// ── Subir o actualizar archivo en Drive ───────────────────────────────────────
+async function subirADrive(
+  token: string,
+  folderId: string,
+  fileName: string,
+  fileBuffer: Buffer,
+  sourceMimeType: string,
+  nombrePaciente: string
+): Promise<{ fileId: string; link: string; actualizado: boolean }> {
+  // Buscar si ya existe un archivo para este paciente
+  const nombreBase = `Menu_Semanal_${nombrePaciente}`
+  const existingId = await buscarArchivoExistente(token, folderId, nombreBase)
+
+  if (existingId) {
+    // Actualizar el archivo existente (sin crear uno nuevo → sin usar más cuota)
+    const result = await actualizarArchivo(token, existingId, fileName, fileBuffer, sourceMimeType)
+    return { ...result, actualizado: true }
+  } else {
+    // Crear archivo nuevo
+    const result = await crearArchivo(token, folderId, fileName, fileBuffer, sourceMimeType)
+    return { ...result, actualizado: false }
   }
 }
 
@@ -142,12 +208,14 @@ export async function POST(req: NextRequest) {
   let base64: string
   let fileName: string
   let mimeType: string
+  let nombrePaciente: string
 
   try {
     const body = await req.json()
     base64 = body.base64
     fileName = body.fileName || 'Menu_Semanal.xlsx'
     mimeType = body.mimeType || 'application/vnd.ms-excel'
+    nombrePaciente = body.nombrePaciente || fileName
 
     if (!base64) throw new Error('Campo base64 requerido')
   } catch (e) {
@@ -159,9 +227,11 @@ export async function POST(req: NextRequest) {
     const token = await obtenerAccessToken(sa)
     const fileBuffer = Buffer.from(base64, 'base64')
 
-    const { fileId, link } = await subirADrive(token, folderId, fileName, fileBuffer, mimeType)
+    const { fileId, link, actualizado } = await subirADrive(
+      token, folderId, fileName, fileBuffer, mimeType, nombrePaciente
+    )
 
-    return NextResponse.json({ ok: true, fileId, link })
+    return NextResponse.json({ ok: true, fileId, link, actualizado })
   } catch (err) {
     console.error('[upload-drive]', err)
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
@@ -193,7 +263,62 @@ export async function GET() {
     if (!res.ok) throw new Error('No se pudo acceder a la carpeta. Verifica que esté compartida con la cuenta de servicio.')
 
     const data = await res.json()
-    return NextResponse.json({ ok: true, carpeta: data.name, id: data.id })
+
+    // Contar archivos en la carpeta y mostrar uso estimado
+    const listaRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed = false`)}&fields=files(id,name,size)&pageSize=100`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    const lista = listaRes.ok ? await listaRes.json() : { files: [] }
+    const totalBytes = lista.files.reduce((sum: number, f: { size?: string }) => sum + parseInt(f.size || '0', 10), 0)
+
+    return NextResponse.json({
+      ok: true,
+      carpeta: data.name,
+      id: data.id,
+      archivos: lista.files.length,
+      usoEstimadoMB: (totalBytes / 1024 / 1024).toFixed(2),
+    })
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
+  }
+}
+
+// ── DELETE: limpiar todos los archivos de la carpeta (liberar cuota) ──────────
+export async function DELETE(req: NextRequest) {
+  const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
+  if (!saJson || !folderId) return NextResponse.json({ ok: false, error: 'Env vars missing' }, { status: 500 })
+
+  // Solo permitir si se pasa ?confirm=true
+  const { searchParams } = new URL(req.url)
+  if (searchParams.get('confirm') !== 'true') {
+    return NextResponse.json({ ok: false, error: 'Agrega ?confirm=true para confirmar la limpieza.' })
+  }
+
+  try {
+    const sa: ServiceAccountKey = JSON.parse(saJson)
+    const token = await obtenerAccessToken(sa)
+
+    // Listar todos los archivos de la carpeta
+    const listaRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed = false`)}&fields=files(id,name)&pageSize=100`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    const lista = await listaRes.json()
+    const archivos: { id: string; name: string }[] = lista.files || []
+
+    // Eliminar cada archivo
+    const eliminados: string[] = []
+    for (const archivo of archivos) {
+      const del = await fetch(`https://www.googleapis.com/drive/v3/files/${archivo.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (del.ok || del.status === 204) eliminados.push(archivo.name)
+    }
+
+    return NextResponse.json({ ok: true, eliminados: eliminados.length, archivos: eliminados })
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
   }
