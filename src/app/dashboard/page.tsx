@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { obtenerPacientes, Paciente } from '@/lib/pacientes'
+import { collectionGroup, getDocs, query, where, Timestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
 
@@ -69,12 +71,32 @@ export default function DashboardPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [cargando, setCargando]   = useState(true)
   const [usuario, setUsuario]     = useState('')
+  const [planesCount, setPlanesCount] = useState(0)
+  const [citasHoy, setCitasHoy]   = useState(0)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async user => {
       if (!user || !ADMINS.includes(user.email ?? '')) { router.replace('/'); return }
       setUsuario(user.displayName || user.email || '')
-      try { setPacientes(await obtenerPacientes()) } catch { /* silent */ }
+      try {
+        const [ps] = await Promise.all([obtenerPacientes()])
+        setPacientes(ps)
+
+        // Contar planes generados (collectionGroup)
+        try {
+          const planesSnap = await getDocs(collectionGroup(db, 'planes'))
+          setPlanesCount(planesSnap.size)
+        } catch { /* silent */ }
+
+        // Contar citas de hoy
+        try {
+          const hoyStr = new Date().toISOString().slice(0, 10)
+          const citasSnap = await getDocs(
+            query(collectionGroup(db, 'citas'), where('fecha', '==', hoyStr))
+          )
+          setCitasHoy(citasSnap.size)
+        } catch { /* silent */ }
+      } catch { /* silent */ }
       finally { setCargando(false) }
     })
     return () => unsub()
@@ -106,9 +128,9 @@ export default function DashboardPage() {
 
   const STATS = [
     { label: 'Pacientes Activos', valor: pacientes.length, acento: '#7B1B2A',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-    { label: 'Consultas Hoy',     valor: 0,               acento: '#8B6914',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+    { label: 'Consultas Hoy',     valor: citasHoy,        acento: '#8B6914',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
     { label: 'Nuevos este Mes',   valor: nuevosEsteMes,   acento: '#2D6A4F',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> },
-    { label: 'Planes Generados',  valor: 0,               acento: '#1B4F8C',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg> },
+    { label: 'Planes Generados',  valor: planesCount,     acento: '#1B4F8C',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg> },
   ]
 
   return (
