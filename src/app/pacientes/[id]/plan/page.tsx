@@ -25,6 +25,8 @@ export default function PlanPage() {
   const [descargando, setDescargando] = useState(false)
   const [descargandoMenu, setDescargandoMenu] = useState(false)
   const [errorMenu, setErrorMenu] = useState('')
+  const [subiendoDrive, setSubiendoDrive] = useState(false)
+  const [driveLink, setDriveLink] = useState<string | null>(null)
 
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [planes, setPlanes] = useState<Plan[]>([])
@@ -77,11 +79,13 @@ export default function PlanPage() {
     } catch { /* sin historia */ }
   }
 
-  const descargarMenuExcel = async () => {
+  const subirMenuDrive = async () => {
     if (!paciente || !planActual) return
-    setDescargandoMenu(true)
+    setSubiendoDrive(true)
     setErrorMenu('')
+    setDriveLink(null)
     try {
+      // 1. Generar el Excel desde la API
       const res = await fetch(`/api/menu/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,20 +96,37 @@ export default function PlanPage() {
         setErrorMenu(err.error || 'Error al generar el menú')
         return
       }
+
+      // 2. Convertir blob → base64
       const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Menu_Semanal_${paciente.nombre}.xls`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const arrayBuffer = await blob.arrayBuffer()
+      const base64 = Buffer.from(arrayBuffer).toString('base64')
+
+      // 3. Subir a Google Drive (se convierte automáticamente a Google Sheets)
+      const fecha = new Date().toISOString().slice(0, 10)
+      const fileName = `Menu_Semanal_${paciente.nombre}_${fecha}`
+      const uploadRes = await fetch('/api/upload-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base64,
+          fileName,
+          mimeType: 'application/vnd.ms-excel',
+        }),
+      })
+      const uploadData = await uploadRes.json()
+
+      if (!uploadData.ok) {
+        setErrorMenu(uploadData.error || 'Error al subir a Google Drive')
+        return
+      }
+
+      setDriveLink(uploadData.link)
     } catch (e) {
       setErrorMenu('Error de conexión')
       console.error(e)
     } finally {
-      setDescargandoMenu(false)
+      setSubiendoDrive(false)
     }
   }
 
@@ -501,26 +522,58 @@ export default function PlanPage() {
                     {/* ── BOTONES (se ocultan en PDF e impresión) ── */}
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
 
-                      {/* Botón Menú Semanal Excel */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                      {/* Botón Menú Semanal → Google Sheets */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '5px' }}>
                         <button
-                          onClick={descargarMenuExcel}
-                          disabled={descargandoMenu || !planActual}
+                          onClick={subirMenuDrive}
+                          disabled={subiendoDrive || !planActual}
                           style={{
                             padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
                             border: 'none',
-                            background: descargandoMenu ? '#C9E8D0' : 'linear-gradient(135deg, #2D6A4F, #40916C)',
-                            color: descargandoMenu ? '#2D6A4F' : 'white',
-                            cursor: (descargandoMenu || !planActual) ? 'not-allowed' : 'pointer',
+                            background: subiendoDrive ? '#C9E8D0' : 'linear-gradient(135deg, #1A73E8, #1557B0)',
+                            color: subiendoDrive ? '#1A73E8' : 'white',
+                            cursor: (subiendoDrive || !planActual) ? 'not-allowed' : 'pointer',
                             fontFamily: "'Lato', sans-serif",
                             display: 'flex', alignItems: 'center', gap: '6px',
                             opacity: !planActual ? 0.5 : 1,
+                            transition: 'opacity 0.15s',
                           }}
                         >
-                          {descargandoMenu
-                            ? <><div style={{ width: '12px', height: '12px', border: '2px solid #2D6A4F', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Generando menú...</>
-                            : '📊 Menú Semanal Excel'}
+                          {subiendoDrive ? (
+                            <>
+                              <div style={{ width: '12px', height: '12px', border: '2px solid #1A73E8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                              Subiendo a Drive...
+                            </>
+                          ) : (
+                            <>
+                              {/* Google Sheets icon */}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="2" width="18" height="20" rx="2" fill="white" opacity="0.25"/>
+                                <path d="M3 8h18M3 13h18M3 18h18M8 2v20M16 2v20" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                              </svg>
+                              Guardar en Google Sheets
+                            </>
+                          )}
                         </button>
+
+                        {/* Link al archivo en Drive tras subir */}
+                        {driveLink && !subiendoDrive && (
+                          <a
+                            href={driveLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              fontSize: '12px', fontWeight: '700', color: '#1A73E8',
+                              background: '#E8F0FE', border: '1px solid #AECBFA',
+                              borderRadius: '8px', padding: '5px 12px',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            ✅ Abrír en Google Sheets →
+                          </a>
+                        )}
+
                         {errorMenu && (
                           <span style={{ fontSize: '11px', color: '#B71C1C' }}>⚠️ {errorMenu}</span>
                         )}
