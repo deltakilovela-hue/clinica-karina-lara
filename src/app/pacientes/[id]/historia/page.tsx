@@ -32,10 +32,17 @@ interface HistoriaClinica {
   texturasRechazadas: string
   alimentosFavoritos: string
   alimentosRechazados: string
+  // Texturas por tipo (JSON string → array of {textura, acepta, rechaza})
+  texturaDetalle: string
   horasSueno: string
   actividadFisica: string
   // Sección familiar
-  horariasComida: string
+  horaDesayuno: string
+  horaColacion1: string
+  horaComida: string
+  horaColacion2: string
+  horaCena: string
+  horariasComida: string  // legacy
   quienCocina: string
   presupuestoAlimentario: string
   habitosFamiliares: string
@@ -77,8 +84,11 @@ export default function HistoriaClinicaPage() {
     intolerancias: '', diagnosticosPrevios: '', sintomasGI: [],
     sintomasGIOtros: '',
     conductaAlimentaria: '', texturasAceptadas: '', texturasRechazadas: '',
-    alimentosFavoritos: '', alimentosRechazados: '', horasSueno: '',
-    actividadFisica: '', horariasComida: '', quienCocina: '',
+    alimentosFavoritos: '', alimentosRechazados: '', texturaDetalle: '[]',
+    horasSueno: '',
+    actividadFisica: '',
+    horaDesayuno: '', horaColacion1: '', horaComida: '', horaColacion2: '', horaCena: '',
+    horariasComida: '', quienCocina: '',
     presupuestoAlimentario: '', habitosFamiliares: '', personasHogar: '',
     notasAdicionales: '',
   })
@@ -118,7 +128,10 @@ export default function HistoriaClinicaPage() {
     intolerancias: '', diagnosticosPrevios: '', sintomasGI: [] as string[],
     sintomasGIOtros: '', conductaAlimentaria: '', texturasAceptadas: '',
     texturasRechazadas: '', alimentosFavoritos: '', alimentosRechazados: '',
-    horasSueno: '', actividadFisica: '', horariasComida: '', quienCocina: '',
+    texturaDetalle: '[]',
+    horasSueno: '', actividadFisica: '',
+    horaDesayuno: '', horaColacion1: '', horaComida: '', horaColacion2: '', horaCena: '',
+    horariasComida: '', quienCocina: '',
     presupuestoAlimentario: '', habitosFamiliares: '', personasHogar: '',
     notasAdicionales: '',
   }
@@ -149,8 +162,14 @@ export default function HistoriaClinicaPage() {
       texturasRechazadas: h.texturasRechazadas || '',
       alimentosFavoritos: h.alimentosFavoritos || '',
       alimentosRechazados: h.alimentosRechazados || '',
+      texturaDetalle: h.texturaDetalle || '[]',
       horasSueno: h.horasSueno || '',
       actividadFisica: h.actividadFisica || '',
+      horaDesayuno: h.horaDesayuno || '',
+      horaColacion1: h.horaColacion1 || '',
+      horaComida: h.horaComida || '',
+      horaColacion2: h.horaColacion2 || '',
+      horaCena: h.horaCena || '',
       horariasComida: h.horariasComida || '',
       quienCocina: h.quienCocina || '',
       presupuestoAlimentario: h.presupuestoAlimentario || '',
@@ -360,35 +379,94 @@ export default function HistoriaClinicaPage() {
             )}
 
             {/* Step 2: Alimentación */}
-            {step === 2 && (
+            {step === 2 && (() => {
+              // Helper: leer/escribir el array de detalle de texturas
+              let detalle: { textura: string; acepta: string; rechaza: string }[] = []
+              try { detalle = JSON.parse(form.texturaDetalle || '[]') } catch { detalle = [] }
+              const setTextura = (textura: string, campo: 'acepta' | 'rechaza', valor: string) => {
+                const copia = [...detalle]
+                const idx = copia.findIndex(t => t.textura === textura)
+                if (idx >= 0) { copia[idx] = { ...copia[idx], [campo]: valor } }
+                else { copia.push({ textura, acepta: campo === 'acepta' ? valor : '', rechaza: campo === 'rechaza' ? valor : '' }) }
+                set('texturaDetalle', JSON.stringify(copia))
+              }
+              const getTextura = (textura: string, campo: 'acepta' | 'rechaza') =>
+                detalle.find(t => t.textura === textura)?.[campo] || ''
+
+              const TEXTURAS = [
+                { id: 'crujiente',   label: 'Crujiente',        emoji: '🥨', desc: 'galletas, tostadas, papas' },
+                { id: 'suave',       label: 'Suave / Cremosa',  emoji: '🥛', desc: 'purés, yogurt, cremas' },
+                { id: 'blanda',      label: 'Blanda / Pastosa', emoji: '🍌', desc: 'plátano, aguacate, tortilla suave' },
+                { id: 'fibrosa',     label: 'Fibrosa',          emoji: '🥦', desc: 'verduras cocidas, carnes' },
+                { id: 'grumosa',     label: 'Grumosa',          emoji: '🫘', desc: 'frijoles enteros, lentejas' },
+                { id: 'pegajosa',    label: 'Pegajosa',         emoji: '🍯', desc: 'arroz, gelatina, miel' },
+                { id: 'liquida',     label: 'Líquida',          emoji: '🥤', desc: 'sopas, caldos, jugos' },
+                { id: 'mixta',       label: 'Mixta',            emoji: '🍲', desc: 'guisos, estofados con trozos' },
+              ]
+              return (
               <div>
                 {secTitle('Conducta Alimentaria')}
-                <div style={{ marginBottom: '18px' }}>
+
+                {/* Descripción general */}
+                <div style={{ marginBottom: '22px' }}>
                   <label style={lS}>Descripción general de la conducta alimentaria</label>
-                  <textarea style={taS} placeholder="Selectividad, neofobia, rituales, etc." value={form.conductaAlimentaria} onChange={e => set('conductaAlimentaria', e.target.value)} />
+                  <textarea style={taS} placeholder="Selectividad, neofobia, rituales, resistencia a nuevos alimentos..." value={form.conductaAlimentaria} onChange={e => set('conductaAlimentaria', e.target.value)} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '18px' }}>
-                  <div>
-                    <label style={lS}>Texturas aceptadas</label>
-                    <textarea style={{ ...taS, minHeight: '80px' }} placeholder="Suave, cremosa, crujiente..." value={form.texturasAceptadas} onChange={e => set('texturasAceptadas', e.target.value)} />
-                  </div>
-                  <div>
-                    <label style={lS}>Texturas rechazadas</label>
-                    <textarea style={{ ...taS, minHeight: '80px' }} placeholder="Fibrosa, pegajosa, grumosa..." value={form.texturasRechazadas} onChange={e => set('texturasRechazadas', e.target.value)} />
+
+                {/* ── Texturas por tipo ── */}
+                <div style={{ marginBottom: '22px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase' as const, letterSpacing: '0.8px', marginBottom: '14px' }}>
+                    Preferencias por tipo de textura
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {TEXTURAS.map(t => (
+                      <div key={t.id} style={{ background: '#FAF7F2', borderRadius: '12px', border: '1px solid #E8DDD0', padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '18px' }}>{t.emoji}</span>
+                          <div>
+                            <p style={{ fontSize: '13px', fontWeight: '700', color: '#2C1810' }}>{t.label}</p>
+                            <p style={{ fontSize: '11px', color: '#9B7B65' }}>ej. {t.desc}</p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <div>
+                            <label style={{ ...lS, color: '#2D6A4F', marginBottom: '4px', display: 'block' }}>✓ Alimentos que acepta</label>
+                            <textarea
+                              style={{ ...taS, minHeight: '58px', border: '1.5px solid #95D5A8', background: 'white' }}
+                              placeholder="¿Qué alimentos de esta textura tolera?"
+                              value={getTextura(t.id, 'acepta')}
+                              onChange={e => setTextura(t.id, 'acepta', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ ...lS, color: '#9B2335', marginBottom: '4px', display: 'block' }}>✗ Alimentos que rechaza</label>
+                            <textarea
+                              style={{ ...taS, minHeight: '58px', border: '1.5px solid #F5C2C7', background: 'white' }}
+                              placeholder="¿Qué alimentos de esta textura evita?"
+                              value={getTextura(t.id, 'rechaza')}
+                              onChange={e => setTextura(t.id, 'rechaza', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+
+                {/* ── Favoritos y rechazados generales ── */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
                   <div>
-                    <label style={lS}>Alimentos favoritos</label>
-                    <textarea style={{ ...taS, minHeight: '80px' }} placeholder="Lista de alimentos que acepta bien" value={form.alimentosFavoritos} onChange={e => set('alimentosFavoritos', e.target.value)} />
+                    <label style={{ ...lS, color: '#2D6A4F' }}>⭐ Alimentos favoritos generales</label>
+                    <textarea style={{ ...taS, minHeight: '80px', border: '1.5px solid #95D5A8' }} placeholder="Lista de alimentos que más le gustan" value={form.alimentosFavoritos} onChange={e => set('alimentosFavoritos', e.target.value)} />
                   </div>
                   <div>
-                    <label style={lS}>Alimentos rechazados</label>
-                    <textarea style={{ ...taS, minHeight: '80px' }} placeholder="Lista de alimentos que rechaza" value={form.alimentosRechazados} onChange={e => set('alimentosRechazados', e.target.value)} />
+                    <label style={{ ...lS, color: '#9B2335' }}>🚫 Alimentos más rechazados</label>
+                    <textarea style={{ ...taS, minHeight: '80px', border: '1.5px solid #F5C2C7' }} placeholder="Lista de alimentos que definitivamente rechaza" value={form.alimentosRechazados} onChange={e => set('alimentosRechazados', e.target.value)} />
                   </div>
                 </div>
               </div>
-            )}
+              )
+            })()}
 
             {/* Step 3: Familia */}
             {step === 3 && (
@@ -404,9 +482,28 @@ export default function HistoriaClinicaPage() {
                     <input type="text" style={iS} placeholder="Mamá, abuela, papá..." value={form.quienCocina} onChange={e => set('quienCocina', e.target.value)} />
                   </div>
                 </div>
+                {/* Horarios de comida — 5 time pickers */}
                 <div style={{ marginBottom: '18px' }}>
                   <label style={lS}>Horarios de comida en casa</label>
-                  <textarea style={taS} placeholder="Desayuno 7am, comida 2pm, cena 8pm..." value={form.horariasComida} onChange={e => set('horariasComida', e.target.value)} />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginTop: '4px' }}>
+                    {[
+                      { campo: 'horaDesayuno',  label: 'Desayuno'   },
+                      { campo: 'horaColacion1', label: 'Colación 1' },
+                      { campo: 'horaComida',    label: 'Comida'     },
+                      { campo: 'horaColacion2', label: 'Colación 2' },
+                      { campo: 'horaCena',      label: 'Cena'       },
+                    ].map(({ campo, label }) => (
+                      <div key={campo}>
+                        <p style={{ fontSize: '11px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase' as const, letterSpacing: '0.6px', marginBottom: '5px' }}>{label}</p>
+                        <input
+                          type="time"
+                          value={(form as Record<string, string>)[campo] || ''}
+                          onChange={e => set(campo, e.target.value)}
+                          style={{ ...iS, colorScheme: 'light', padding: '9px 10px', textAlign: 'center' as const }}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div style={{ marginBottom: '18px' }}>
                   <label style={lS}>Presupuesto alimentario familiar</label>

@@ -7,7 +7,7 @@ import { auth } from '@/lib/firebase'
 import { obtenerPaciente, Paciente } from '@/lib/pacientes'
 import { collection, addDoc, getDocs, orderBy, query, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { calcularPercentilPeso, calcularPercentilTalla, calcularIMC, edadEnMeses } from '@/lib/percentiles'
+import { calcularIMC, diagnosticoIMCPediatrico, percentilEstimadoIMC, edadEnMeses } from '@/lib/percentiles'
 import Link from 'next/link'
 import PasoNavegacion from '@/components/PasoNavegacion'
 
@@ -17,12 +17,15 @@ interface Medicion {
   id?: string
   fecha: string
   peso: number
-  talla: number
+  talla: number       // siempre en cm
   imc: number
-  percentilPeso: number
-  percentilTalla: number
-  interpretacionPeso: string
-  interpretacionTalla: string
+  percentilIMC: string
+  diagnostico: string
+  // Campos legacy (pueden venir de registros anteriores)
+  percentilPeso?: number
+  percentilTalla?: number
+  interpretacionPeso?: string
+  interpretacionTalla?: string
   notas: string
   fechaCreacion?: Timestamp
 }
@@ -69,14 +72,12 @@ export default function AntropometriaPage() {
   const calcular = () => {
     if (!form.peso || !form.talla || !paciente) return null
     const peso = parseFloat(form.peso)
-    const talla = parseFloat(form.talla)
-    if (isNaN(peso) || isNaN(talla)) return null
-    const meses = edadEnMeses(paciente.fechaNacimiento)
-    const sexo = paciente.sexo
+    const talla = parseFloat(form.talla)   // en cm
+    if (isNaN(peso) || isNaN(talla) || talla <= 0 || peso <= 0) return null
     const imc = calcularIMC(peso, talla)
-    const resPeso = calcularPercentilPeso(peso, meses, sexo)
-    const resTalla = calcularPercentilTalla(talla, meses, sexo)
-    return { peso, talla, imc, meses, resPeso, resTalla }
+    const diagnostico = diagnosticoIMCPediatrico(imc)
+    const percentilIMC = percentilEstimadoIMC(imc)
+    return { peso, talla, imc, diagnostico, percentilIMC }
   }
 
   const preview = calcular()
@@ -88,12 +89,10 @@ export default function AntropometriaPage() {
       const medicion: Omit<Medicion, 'id'> = {
         fecha: form.fecha,
         peso: preview.peso,
-        talla: preview.talla,
+        talla: preview.talla,        // cm
         imc: preview.imc,
-        percentilPeso: preview.resPeso.percentil,
-        percentilTalla: preview.resTalla.percentil,
-        interpretacionPeso: preview.resPeso.interpretacion.texto,
-        interpretacionTalla: preview.resTalla.interpretacion.texto,
+        percentilIMC: preview.percentilIMC,
+        diagnostico: preview.diagnostico.texto,
         notas: form.notas,
         fechaCreacion: Timestamp.now(),
       }
@@ -236,9 +235,9 @@ export default function AntropometriaPage() {
                   value={form.peso} onChange={e => setForm(p => ({ ...p, peso: e.target.value }))} />
               </div>
               <div>
-                <label style={labelStyle}>Talla (cm) *</label>
+                <label style={labelStyle}>Talla — ingresar en centímetros (cm) *</label>
                 <input type="number" step="0.1" min="0" max="250" style={inputStyle}
-                  placeholder="ej. 89.5"
+                  placeholder="ej. 120.5 cm"
                   value={form.talla} onChange={e => setForm(p => ({ ...p, talla: e.target.value }))} />
               </div>
             </div>
@@ -248,22 +247,29 @@ export default function AntropometriaPage() {
               <div style={{ background: '#FAF7F2', borderRadius: '14px', padding: '20px', border: '1px solid #E8DDD0', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#8B6914' }}>
-                    Cálculo Automático · Tablas OMS
+                    Cálculo Automático · IMC Pediátrico
                   </p>
                   <button onClick={() => setMostrarInfoCalculo(true)} type="button" style={{ background: 'none', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '3px 10px', fontSize: '12px', color: '#9B7B65', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>ℹ️ ¿Qué mide?</button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                  {[
-                    { label: 'IMC', valor: `${preview.imc} kg/m²`, sub: preview.imc < 18.5 ? 'Bajo peso' : preview.imc < 25 ? 'Normal' : 'Sobrepeso', color: preview.imc >= 18.5 && preview.imc < 25 ? '#2D6A4F' : '#C4831A' },
-                    { label: 'Percentil Peso/Edad', valor: `P${preview.resPeso.percentil}`, sub: preview.resPeso.interpretacion.texto, color: preview.resPeso.interpretacion.color },
-                    { label: 'Percentil Talla/Edad', valor: `P${preview.resTalla.percentil}`, sub: preview.resTalla.interpretacion.texto, color: preview.resTalla.interpretacion.color },
-                  ].map(item => (
-                    <div key={item.label} style={{ background: 'white', borderRadius: '10px', padding: '14px', border: '1px solid #E8DDD0' }}>
-                      <p style={{ fontSize: '11px', color: '#9B7B65', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>{item.label}</p>
-                      <p style={{ fontSize: '22px', fontWeight: '700', color: item.color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{item.valor}</p>
-                      <p style={{ fontSize: '12px', color: item.color, marginTop: '4px', fontWeight: '600' }}>{item.sub}</p>
-                    </div>
-                  ))}
+                  {/* IMC */}
+                  <div style={{ background: 'white', borderRadius: '10px', padding: '14px', border: '1px solid #E8DDD0' }}>
+                    <p style={{ fontSize: '11px', color: '#9B7B65', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>IMC</p>
+                    <p style={{ fontSize: '22px', fontWeight: '700', color: preview.diagnostico.color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{preview.imc} kg/m²</p>
+                    <p style={{ fontSize: '12px', color: '#9B7B65', marginTop: '4px' }}>Peso ÷ Talla²</p>
+                  </div>
+                  {/* Percentil estimado */}
+                  <div style={{ background: 'white', borderRadius: '10px', padding: '14px', border: '1px solid #E8DDD0' }}>
+                    <p style={{ fontSize: '11px', color: '#9B7B65', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Percentil estimado</p>
+                    <p style={{ fontSize: '22px', fontWeight: '700', color: preview.diagnostico.color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{preview.percentilIMC}</p>
+                    <p style={{ fontSize: '12px', color: '#9B7B65', marginTop: '4px' }}>Basado en IMC</p>
+                  </div>
+                  {/* Diagnóstico */}
+                  <div style={{ background: preview.diagnostico.color + '12', borderRadius: '10px', padding: '14px', border: `1.5px solid ${preview.diagnostico.color}44` }}>
+                    <p style={{ fontSize: '11px', color: '#9B7B65', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Diagnóstico</p>
+                    <p style={{ fontSize: '16px', fontWeight: '700', color: preview.diagnostico.color, fontFamily: "'Playfair Display', serif", lineHeight: 1.3 }}>{preview.diagnostico.texto}</p>
+                    <p style={{ fontSize: '11px', color: '#9B7B65', marginTop: '6px' }}>Clasificación pediátrica</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -321,15 +327,20 @@ export default function AntropometriaPage() {
             </div>
 
             {/* Header tabla */}
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 80px 70px 140px 140px 1fr', gap: '12px', padding: '12px 24px', background: '#FAF7F2', borderBottom: '1px solid #E8DDD0' }}>
-              {['Fecha', 'Peso', 'Talla', 'IMC', 'Percentil Peso', 'Percentil Talla', 'Notas'].map(h => (
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 80px 90px 80px 120px 1fr', gap: '12px', padding: '12px 24px', background: '#FAF7F2', borderBottom: '1px solid #E8DDD0' }}>
+              {['Fecha', 'Peso', 'Talla (cm)', 'IMC', 'Diagnóstico', 'Notas'].map(h => (
                 <p key={h} style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#9B7B65' }}>{h}</p>
               ))}
             </div>
 
-            {mediciones.map((m, i) => (
+            {mediciones.map((m, i) => {
+              // Compatibilidad con registros viejos que no tienen diagnostico
+              const diag = m.diagnostico || diagnosticoIMCPediatrico(m.imc)
+              const diagTexto = typeof diag === 'string' ? diag : diag.texto
+              const diagColor = typeof diag === 'string' ? diagnosticoIMCPediatrico(m.imc).color : diag.color
+              return (
               <div key={m.id} style={{
-                display: 'grid', gridTemplateColumns: '120px 80px 80px 70px 140px 140px 1fr',
+                display: 'grid', gridTemplateColumns: '130px 80px 90px 80px 120px 1fr',
                 gap: '12px', padding: '16px 24px', alignItems: 'center',
                 borderBottom: i < mediciones.length - 1 ? '1px solid #F2EDE4' : 'none'
               }}>
@@ -337,27 +348,20 @@ export default function AntropometriaPage() {
                   {new Date(m.fecha + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
                 <p style={{ fontSize: '14px', color: '#2C1810' }}>{m.peso} kg</p>
-                <p style={{ fontSize: '14px', color: '#2C1810' }}>{m.talla} cm</p>
+                <p style={{ fontSize: '14px', color: '#2C1810', fontWeight: '600' }}>{m.talla} cm</p>
                 <p style={{ fontSize: '14px', color: '#2C1810' }}>{m.imc}</p>
                 <div>
                   <span style={{
-                    fontSize: '13px', fontWeight: '700', padding: '3px 10px', borderRadius: '20px',
-                    background: m.interpretacionPeso === 'Normal' ? '#D8F3DC' : '#FFF3CD',
-                    color: m.interpretacionPeso === 'Normal' ? '#2D6A4F' : '#856404'
-                  }}>P{m.percentilPeso} · {m.interpretacionPeso}</span>
-                </div>
-                <div>
-                  <span style={{
-                    fontSize: '13px', fontWeight: '700', padding: '3px 10px', borderRadius: '20px',
-                    background: m.interpretacionTalla === 'Normal' ? '#D8F3DC' : '#FFF3CD',
-                    color: m.interpretacionTalla === 'Normal' ? '#2D6A4F' : '#856404'
-                  }}>P{m.percentilTalla} · {m.interpretacionTalla}</span>
+                    fontSize: '12px', fontWeight: '700', padding: '3px 9px', borderRadius: '20px',
+                    background: diagColor + '18', color: diagColor,
+                  }}>{diagTexto}</span>
                 </div>
                 <p style={{ fontSize: '13px', color: '#9B7B65', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {m.notas || '—'}
                 </p>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -368,12 +372,17 @@ export default function AntropometriaPage() {
               Última Medición — {new Date(mediciones[0].fecha + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-              {[
-                { label: 'Peso', valor: `${mediciones[0].peso} kg` },
-                { label: 'Talla', valor: `${mediciones[0].talla} cm` },
-                { label: 'IMC', valor: `${mediciones[0].imc} kg/m²` },
-                { label: 'P. Peso/Edad', valor: `P${mediciones[0].percentilPeso}`, sub: mediciones[0].interpretacionPeso, color: mediciones[0].interpretacionPeso === 'Normal' ? '#2D6A4F' : '#C4831A' },
-              ].map(item => (
+              {(() => {
+                const ult = mediciones[0]
+                const diag = diagnosticoIMCPediatrico(ult.imc)
+                const perc = ult.percentilIMC || percentilEstimadoIMC(ult.imc)
+                return [
+                  { label: 'Peso', valor: `${ult.peso} kg`, sub: undefined, color: '#2C1810' },
+                  { label: 'Talla', valor: `${ult.talla} cm`, sub: undefined, color: '#2C1810' },
+                  { label: 'IMC', valor: `${ult.imc} kg/m²`, sub: perc, color: diag.color },
+                  { label: 'Diagnóstico', valor: diag.texto, sub: 'Clasificación pediátrica', color: diag.color },
+                ]
+              })().map(item => (
                 <div key={item.label} style={{ background: '#FAF7F2', borderRadius: '12px', padding: '16px', border: '1px solid #E8DDD0' }}>
                   <p style={{ fontSize: '11px', color: '#9B7B65', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>{item.label}</p>
                   <p style={{ fontSize: '20px', fontWeight: '700', color: 'color' in item ? item.color : '#2C1810', fontFamily: "'Playfair Display', serif" }}>{item.valor}</p>
