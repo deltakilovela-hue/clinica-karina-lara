@@ -14,6 +14,7 @@ import { crearCita } from '@/lib/citas'
 const ADMINS = ['Ln.karynalaras@gmail.com', 'deltakilo.vela@gmail.com', 'admin@clinicakarina.app', 'deltakilo.gemini@gmail.com']
 
 interface Plan { id?: string; texto: string; fechaCreacion?: Timestamp }
+interface MenuGuardado { id?: string; fileName: string; driveLink: string; fechaCreacion?: Timestamp }
 interface MensajeChat { rol: 'usuario' | 'asistente'; texto: string }
 
 export default function PlanPage() {
@@ -27,6 +28,7 @@ export default function PlanPage() {
   const [errorMenu, setErrorMenu] = useState('')
   const [subiendoDrive, setSubiendoDrive] = useState(false)
   const [driveLink, setDriveLink] = useState<string | null>(null)
+  const [menus, setMenus] = useState<MenuGuardado[]>([])
 
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [planes, setPlanes] = useState<Plan[]>([])
@@ -52,7 +54,7 @@ export default function PlanPage() {
       try {
         const p = await obtenerPaciente(id)
         setPaciente(p)
-        await Promise.all([cargarPlanes(), cargarHistoria()])
+        await Promise.all([cargarPlanes(), cargarHistoria(), cargarMenus()])
       } catch (e) { console.error(e) }
       finally { setCargando(false) }
     })
@@ -69,6 +71,14 @@ export default function PlanPage() {
     const lista = snap.docs.map(d => ({ id: d.id, ...d.data() } as Plan))
     setPlanes(lista)
     if (lista.length > 0) setPlanActual(lista[0].texto)
+  }
+
+  const cargarMenus = async () => {
+    try {
+      const q = query(collection(db, `pacientes/${id}/menus`), orderBy('fechaCreacion', 'desc'))
+      const snap = await getDocs(q)
+      setMenus(snap.docs.map(d => ({ id: d.id, ...d.data() } as MenuGuardado)))
+    } catch { /* sin menus */ }
   }
 
   const cargarHistoria = async () => {
@@ -122,6 +132,15 @@ export default function PlanPage() {
       }
 
       setDriveLink(uploadData.link)
+
+      // 4. Guardar link en Firestore para acceso rápido
+      await addDoc(collection(db, `pacientes/${id}/menus`), {
+        fileName,
+        driveLink: uploadData.link,
+        fileId: uploadData.fileId,
+        fechaCreacion: Timestamp.now(),
+      })
+      await cargarMenus()
     } catch (e) {
       setErrorMenu('Error de conexión')
       console.error(e)
@@ -485,6 +504,47 @@ export default function PlanPage() {
                       Plan {planes.length - i} · {p.fechaCreacion?.toDate().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* ── Menús guardados en Drive ── */}
+              {menus.length > 0 && (
+                <div style={{ marginBottom: '20px', background: '#E8F0FE', border: '1.5px solid #AECBFA', borderRadius: '14px', padding: '14px 18px' }}>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#1A73E8', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    📊 Hojas de cálculo en Drive
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                    {menus.map((m, i) => {
+                      const fecha = m.fechaCreacion
+                        ? new Date((m.fechaCreacion as Timestamp).seconds * 1000).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : ''
+                      return (
+                        <div key={m.id || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', borderRadius: '10px', padding: '9px 14px', border: '1px solid #AECBFA' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '16px' }}>📗</span>
+                            <div>
+                              <p style={{ fontSize: '13px', fontWeight: '700', color: '#1A73E8', margin: 0 }}>{m.fileName}</p>
+                              {fecha && <p style={{ fontSize: '11px', color: '#9B7B65', margin: 0 }}>{fecha}</p>}
+                            </div>
+                          </div>
+                          <a
+                            href={m.driveLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              fontSize: '12px', fontWeight: '700', color: 'white',
+                              background: '#1A73E8', borderRadius: '8px',
+                              padding: '6px 12px', textDecoration: 'none',
+                              flexShrink: 0,
+                            }}
+                          >
+                            Abrir →
+                          </a>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 

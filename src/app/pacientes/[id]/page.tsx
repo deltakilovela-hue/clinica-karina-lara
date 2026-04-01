@@ -30,6 +30,7 @@ export default function DetallePacientePage() {
   const [planes, setPlanes] = useState<Record<string, unknown>[]>([])
   const [seguimientos, setSeguimientos] = useState<Record<string, unknown>[]>([])
   const [diagnosticos, setDiagnosticos] = useState<Record<string, unknown>[]>([])
+  const [menus, setMenus] = useState<{ id: string; fileName: string; driveLink: string; fechaCreacion?: { seconds: number } }[]>([])
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -44,6 +45,7 @@ export default function DetallePacientePage() {
           cargarPlanes(),
           cargarSeguimientos(),
           cargarDiagnosticos(),
+          cargarMenus(),
         ])
       } catch (e) { console.error(e) }
       finally { setCargando(false) }
@@ -75,6 +77,13 @@ export default function DetallePacientePage() {
     const q = query(collection(db, `pacientes/${id}/diagnosticos`), orderBy('fechaCreacion', 'desc'))
     const snap = await getDocs(q)
     setDiagnosticos(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  }
+  const cargarMenus = async () => {
+    try {
+      const q = query(collection(db, `pacientes/${id}/menus`), orderBy('fechaCreacion', 'desc'))
+      const snap = await getDocs(q)
+      setMenus(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; fileName: string; driveLink: string; fechaCreacion?: { seconds: number } })))
+    } catch { /* sin menus aún */ }
   }
 
   const handleEliminar = async () => {
@@ -446,6 +455,54 @@ export default function DetallePacientePage() {
               </div>
             )
           })()}
+
+          {/* ── Google Sheets guardados ── */}
+          {menus.length > 0 && (
+            <div style={{ background: '#E8F0FE', border: '1.5px solid #AECBFA', borderRadius: '16px', padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: '#1A73E8' }}>
+                  📊 Menús en Google Sheets
+                </p>
+                <span style={{ fontSize: '11px', background: '#1A73E8', color: 'white', padding: '2px 9px', borderRadius: '20px', fontWeight: '700' }}>
+                  {menus.length}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {menus.map((m, i) => {
+                  const fecha = m.fechaCreacion
+                    ? new Date(m.fechaCreacion.seconds * 1000).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : ''
+                  return (
+                    <div key={m.id || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', borderRadius: '10px', padding: '10px 14px', border: '1px solid #AECBFA' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
+                        <span style={{ fontSize: '18px', flexShrink: 0 }}>📗</span>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontSize: '13px', fontWeight: '700', color: '#1557B0', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {m.fileName}
+                          </p>
+                          {fecha && <p style={{ fontSize: '11px', color: '#9B7B65', margin: 0 }}>{fecha}</p>}
+                        </div>
+                      </div>
+                      <a
+                        href={m.driveLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '5px',
+                          fontSize: '12px', fontWeight: '700', color: 'white',
+                          background: 'linear-gradient(135deg, #1A73E8, #1557B0)',
+                          borderRadius: '8px', padding: '6px 12px',
+                          textDecoration: 'none', flexShrink: 0, marginLeft: '10px',
+                        }}
+                      >
+                        Abrir →
+                      </a>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Módulos */}
           <div>
