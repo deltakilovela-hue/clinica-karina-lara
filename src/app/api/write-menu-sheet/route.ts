@@ -221,34 +221,49 @@ export async function POST(req: NextRequest) {
   let pacienteNombre: string
   let planTexto: string
   let fecha: string
+  let pacienteSheetId: string | undefined
 
   try {
     const body = await req.json()
     pacienteNombre = body.pacienteNombre || 'Paciente'
     planTexto = body.planTexto || ''
     fecha = body.fecha || new Date().toLocaleDateString('es-MX')
+    pacienteSheetId = body.pacienteSheetId  // ID de la hoja personal del paciente (opcional)
     if (!planTexto) throw new Error('Campo planTexto requerido')
   } catch (e) {
     return NextResponse.json({ ok: false, error: `Body inválido: ${e}` }, { status: 400 })
+  }
+
+  // Usar la hoja personal del paciente si existe, si no la hoja maestra
+  const sheetIdUsado = pacienteSheetId || sheetId
+
+  if (!sheetIdUsado) {
+    return NextResponse.json({
+      ok: false,
+      error: 'No hay hoja vinculada para este paciente y tampoco hay GOOGLE_SHEET_ID configurado.',
+    }, { status: 400 })
   }
 
   try {
     const sa: ServiceAccountKey = JSON.parse(saJson)
     const token = await obtenerAccessToken(sa)
 
-    // Nombre de la pestaña = nombre del paciente (máx 100 chars)
-    const nombrePestana = pacienteNombre.substring(0, 100)
+    // Si tiene hoja propia, usar "Menú Semanal" como nombre de pestaña
+    // Si usa la hoja maestra, usar el nombre del paciente como pestaña
+    const nombrePestana = pacienteSheetId
+      ? 'Menú Semanal'
+      : pacienteNombre.substring(0, 100)
 
     // Asegurar que la pestaña existe
-    await asegurarPestana(token, sheetId, nombrePestana)
+    await asegurarPestana(token, sheetIdUsado, nombrePestana)
 
     // Parsear plan a filas
     const filas = parsearPlanAFilas(planTexto, pacienteNombre, fecha)
 
     // Escribir en la hoja
-    await escribirEnPestana(token, sheetId, nombrePestana, filas)
+    await escribirEnPestana(token, sheetIdUsado, nombrePestana, filas)
 
-    const link = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`
+    const link = `https://docs.google.com/spreadsheets/d/${sheetIdUsado}/edit`
 
     return NextResponse.json({
       ok: true,

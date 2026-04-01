@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { obtenerPaciente, eliminarPaciente, Paciente } from '@/lib/pacientes'
-import { collection, getDocs, orderBy, query } from 'firebase/firestore'
+import { collection, getDocs, orderBy, query, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
 
@@ -22,6 +22,9 @@ export default function DetallePacientePage() {
   const [descargando, setDescargando] = useState(false)
   const [mostrarPass, setMostrarPass] = useState(false)
   const [copiado, setCopiado] = useState<string | null>(null)
+  const [sheetIdInput, setSheetIdInput] = useState('')
+  const [guardandoSheet, setGuardandoSheet] = useState(false)
+  const [sheetGuardado, setSheetGuardado] = useState(false)
   const reporteRef = useRef<HTMLDivElement>(null)
 
   // Datos para el reporte
@@ -141,6 +144,23 @@ export default function DetallePacientePage() {
       botones.forEach(b => ((b as HTMLElement).style.display = ''))
       setDescargando(false)
     }
+  }
+
+  const guardarGoogleSheet = async () => {
+    if (!sheetIdInput.trim()) return
+    setGuardandoSheet(true)
+    try {
+      // Extraer ID si pegaron la URL completa
+      const input = sheetIdInput.trim()
+      const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+      const sheetId = match ? match[1] : input
+      await updateDoc(doc(db, 'pacientes', id), { googleSheetId: sheetId })
+      setPaciente(p => p ? { ...p, googleSheetId: sheetId } : p)
+      setSheetGuardado(true)
+      setSheetIdInput('')
+      setTimeout(() => setSheetGuardado(false), 4000)
+    } catch (e) { console.error(e) }
+    finally { setGuardandoSheet(false) }
   }
 
   const copiar = (texto: string, clave: string) => {
@@ -503,6 +523,75 @@ export default function DetallePacientePage() {
               </div>
             </div>
           )}
+
+          {/* ── Google Sheet del paciente ── */}
+          <div style={{
+            background: paciente.googleSheetId ? '#E8F0FE' : 'white',
+            border: `1.5px solid ${paciente.googleSheetId ? '#AECBFA' : '#E8DDD0'}`,
+            borderRadius: '16px', padding: '18px 20px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>📗</span>
+                <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: paciente.googleSheetId ? '#1A73E8' : '#8B6914' }}>
+                  Google Sheet del Paciente
+                </p>
+              </div>
+              {paciente.googleSheetId && (
+                <a
+                  href={`https://docs.google.com/spreadsheets/d/${paciente.googleSheetId}/edit`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: '12px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg,#1A73E8,#1557B0)', borderRadius: '8px', padding: '6px 14px', textDecoration: 'none' }}
+                >
+                  Abrir hoja →
+                </a>
+              )}
+            </div>
+
+            {paciente.googleSheetId ? (
+              <div>
+                <p style={{ fontSize: '12px', color: '#1557B0', fontFamily: 'monospace', background: 'white', border: '1px solid #AECBFA', borderRadius: '8px', padding: '8px 12px', wordBreak: 'break-all' }}>
+                  {paciente.googleSheetId}
+                </p>
+                <p style={{ fontSize: '11px', color: '#6B4F3A', marginTop: '8px' }}>
+                  Al generar un menú, se escribirá directo en esta hoja. Para cambiarla, pega el nuevo ID abajo.
+                </p>
+              </div>
+            ) : (
+              <p style={{ fontSize: '12px', color: '#9B7B65', marginBottom: '12px', lineHeight: 1.6 }}>
+                Vincula una Google Sheet para que los menús se guarden directamente en ella.
+                <br />
+                <strong>Pasos:</strong> Crea una hoja en Drive → Compártela con{' '}
+                <code style={{ fontSize: '10px', background: '#F5EDE8', padding: '2px 5px', borderRadius: '4px' }}>
+                  clinica-karina-excel-sync@eastern-team-491923-m8.iam.gserviceaccount.com
+                </code>{' '}
+                como Editor → Pega el ID o URL abajo.
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <input
+                type="text"
+                placeholder="ID o URL de Google Sheets..."
+                value={sheetIdInput}
+                onChange={e => setSheetIdInput(e.target.value)}
+                style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #AECBFA', fontSize: '13px', fontFamily: "'Lato', sans-serif", outline: 'none' }}
+              />
+              <button
+                onClick={guardarGoogleSheet}
+                disabled={guardandoSheet || !sheetIdInput.trim()}
+                style={{
+                  padding: '9px 18px', borderRadius: '9px', fontWeight: '700', fontSize: '13px',
+                  border: 'none', cursor: guardandoSheet || !sheetIdInput.trim() ? 'not-allowed' : 'pointer',
+                  background: sheetGuardado ? '#2D6A4F' : '#1A73E8', color: 'white',
+                  fontFamily: "'Lato', sans-serif", transition: 'background 0.2s',
+                  opacity: !sheetIdInput.trim() ? 0.5 : 1,
+                }}
+              >
+                {sheetGuardado ? '✓ Guardado' : guardandoSheet ? '...' : 'Vincular'}
+              </button>
+            </div>
+          </div>
 
           {/* Módulos */}
           <div>

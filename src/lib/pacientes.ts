@@ -25,6 +25,7 @@ export interface Paciente {
   motivoConsulta: string
   correoAcceso?: string
   passwordAcceso?: string
+  googleSheetId?: string
   fechaCreacion?: Timestamp
 }
 

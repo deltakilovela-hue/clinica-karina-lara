@@ -105,6 +105,7 @@ export default function PlanPage() {
           pacienteNombre: paciente.nombre,
           planTexto: planActual,
           fecha,
+          pacienteSheetId: paciente.googleSheetId || null,
         }),
       })
       const data = await res.json()
