@@ -497,7 +497,7 @@ export default function HistoriaClinicaPage() {
                         <p style={{ fontSize: '11px', fontWeight: '700', color: '#8B6914', textTransform: 'uppercase' as const, letterSpacing: '0.6px', marginBottom: '5px' }}>{label}</p>
                         <input
                           type="time"
-                          value={(form as Record<string, string>)[campo] || ''}
+                          value={(form as unknown as Record<string, string>)[campo] || ''}
                           onChange={e => set(campo, e.target.value)}
                           style={{ ...iS, colorScheme: 'light', padding: '9px 10px', textAlign: 'center' as const }}
                         />
