@@ -240,7 +240,7 @@ export default function PlanPage() {
           <div>
             <div style="color:white;font-size:20px;font-weight:700;letter-spacing:0.5px;">Lic. Karina Lara Sánchez</div>
             <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:3px;">Nutrióloga Clínica Pediátrica · Neurodesarrollo y Salud Intestinal</div>
-            <div style="color:rgba(255,255,255,0.7);font-size:12px;margin-top:2px;">Cédula Profesional: 12345678 · Tepic, Nayarit</div>
+            <div style="color:rgba(255,255,255,0.7);font-size:12px;margin-top:2px;">Cédula Profesional: 13860240 · Tel: 669 270 3366 · Tepic, Nayarit</div>
           </div>
           <div style="text-align:right;">
             <div style="color:rgba(255,255,255,0.85);font-size:12px;">Fecha de emisión</div>
