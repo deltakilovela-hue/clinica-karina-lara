@@ -38,6 +38,8 @@ export default function PlanPage() {
   const [planActual, setPlanActual] = useState('')
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'plan' | 'super' | 'chat'>('plan')
+  const [modoEdicion, setModoEdicion] = useState(false)
+  const [textoEdicion, setTextoEdicion] = useState('')
   const [mensajeChat, setMensajeChat] = useState('')
   const [enviandoChat, setEnviandoChat] = useState(false)
   const [historialChat, setHistorialChat] = useState<MensajeChat[]>([])
@@ -208,15 +210,14 @@ export default function PlanPage() {
     finally { setGuardandoCita(false) }
   }
 
-  // ─── Función para descargar PDF limpio (sin botones) ─────────────────────────
-  const descargarPDF = async () => {
-    const elemento = planPdfRef.current
-    if (!elemento || !paciente) return
-    setDescargando(true)
+  const iniciarEdicion = () => { setTextoEdicion(planActual); setModoEdicion(true) }
+  const guardarEdicion = () => { setPlanActual(textoEdicion); setModoEdicion(false) }
+  const cancelarEdicion = () => { setModoEdicion(false) }
 
-    // 1️⃣ Ocultar todos los botones dentro del área del plan antes de capturar
-    const botones = elemento.querySelectorAll('button')
-    botones.forEach(b => (b.style.display = 'none'))
+  // ─── Función para descargar PDF limpio con header de Karina Lara ─────────────
+  const descargarPDF = async () => {
+    if (!paciente) return
+    setDescargando(true)
 
     try {
       const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
@@ -224,34 +225,111 @@ export default function PlanPage() {
         import('html2canvas'),
       ])
 
-      // 2️⃣ Capturar solo el contenido del plan (sin header, chat, ni botones)
-      const canvas = await html2canvas(elemento, {
+      // Crear contenedor temporal oculto con diseño limpio para PDF
+      const contenedor = document.createElement('div')
+      contenedor.style.cssText = `
+        position: fixed; top: -9999px; left: 0;
+        width: 794px; background: white; padding: 0;
+        font-family: Arial, sans-serif; color: #1a1a1a;
+      `
+
+      // Header con info de Karina Lara
+      const fechaHoy = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+      contenedor.innerHTML = `
+        <div style="background:#7B1B2A;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="color:white;font-size:20px;font-weight:700;letter-spacing:0.5px;">Lic. Karina Lara Sánchez</div>
+            <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:3px;">Nutrióloga Clínica Pediátrica · Neurodesarrollo y Salud Intestinal</div>
+            <div style="color:rgba(255,255,255,0.7);font-size:12px;margin-top:2px;">Cédula Profesional: 12345678 · Tepic, Nayarit</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="color:rgba(255,255,255,0.85);font-size:12px;">Fecha de emisión</div>
+            <div style="color:white;font-size:13px;font-weight:600;margin-top:2px;">${fechaHoy}</div>
+            <div style="color:rgba(255,255,255,0.7);font-size:12px;margin-top:4px;">Paciente: ${paciente.nombre}</div>
+          </div>
+        </div>
+        <div id="pdf-body" style="padding:28px 32px;font-size:13px;line-height:1.65;color:#1a1a1a;"></div>
+        <div style="background:#F5F0EB;border-top:2px solid #7B1B2A;padding:12px 32px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+          <div style="font-size:11px;color:#6B4F3A;">Clínica de Nutrición Pediátrica · Tepic, Nayarit</div>
+          <div style="font-size:11px;color:#6B4F3A;">Documento generado el ${fechaHoy}</div>
+        </div>
+      `
+      document.body.appendChild(contenedor)
+
+      // Llenar cuerpo con el plan en texto limpio
+      const body = contenedor.querySelector('#pdf-body') as HTMLElement
+      const lineas = planActual.split('\n')
+      lineas.forEach(linea => {
+        let el: HTMLElement
+        if (linea.startsWith('## ')) {
+          el = document.createElement('h2')
+          el.style.cssText = 'font-size:18px;font-weight:700;color:#7B1B2A;margin:20px 0 8px;border-bottom:1.5px solid #E8DDD0;padding-bottom:6px;'
+          el.textContent = linea.replace(/^## /, '')
+        } else if (linea.startsWith('### ')) {
+          el = document.createElement('h3')
+          el.style.cssText = 'font-size:14px;font-weight:700;color:#A63244;margin:16px 0 6px;'
+          el.textContent = linea.replace(/^### /, '')
+        } else if (linea.startsWith('**') && linea.endsWith('**')) {
+          el = document.createElement('p')
+          el.style.cssText = 'font-size:13px;font-weight:700;color:#2C1810;margin:8px 0 3px;'
+          el.textContent = linea.replace(/\*\*/g, '')
+        } else if (linea.includes('**')) {
+          el = document.createElement('p')
+          el.style.cssText = 'font-size:13px;color:#2C1810;margin:3px 0;'
+          el.innerHTML = linea.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        } else if (linea.startsWith('- ') || linea.startsWith('* ')) {
+          el = document.createElement('p')
+          el.style.cssText = 'font-size:13px;color:#2C1810;margin:2px 0;padding-left:14px;'
+          el.textContent = '• ' + linea.replace(/^[-*] /, '')
+        } else if (linea.startsWith('---')) {
+          el = document.createElement('hr')
+          ;(el as HTMLHRElement).style.cssText = 'border:none;border-top:1px solid #E8DDD0;margin:14px 0;'
+        } else if (linea.startsWith('|')) {
+          // Omitir líneas de tabla separador
+          if (/^\|[-\s|:]+\|/.test(linea)) return
+          el = document.createElement('p')
+          el.style.cssText = 'font-size:12px;color:#2C1810;margin:2px 0;font-family:monospace;'
+          el.textContent = linea
+        } else if (linea.trim() === '') {
+          el = document.createElement('div')
+          el.style.height = '6px'
+        } else {
+          el = document.createElement('p')
+          el.style.cssText = 'font-size:13px;color:#2C1810;margin:3px 0;'
+          el.textContent = linea
+        }
+        body.appendChild(el)
+      })
+
+      const canvas = await html2canvas(contenedor, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        width: 794,
       })
+      document.body.removeChild(contenedor)
 
       const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF('p', 'mm', 'a4')
-
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
-      const margin = 12
+      const margin = 10
       const imgWidth = pageWidth - margin * 2
       const imgHeight = (canvas.height * imgWidth) / canvas.width
 
-      let posicionY = margin
-      let alturaRestante = imgHeight
+      // Paginación correcta: desplazar la imagen hacia arriba en cada página
+      let heightLeft = imgHeight
+      let position = margin
 
-      pdf.addImage(imgData, 'PNG', margin, posicionY, imgWidth, imgHeight)
-      alturaRestante -= (pageHeight - margin * 2)
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight)
+      heightLeft -= (pageHeight - margin)
 
-      while (alturaRestante > 0) {
-        posicionY = alturaRestante - imgHeight + margin
+      while (heightLeft > 0) {
+        position -= (pageHeight - margin)
         pdf.addPage()
-        pdf.addImage(imgData, 'PNG', margin, posicionY, imgWidth, imgHeight)
-        alturaRestante -= (pageHeight - margin * 2)
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight)
+        heightLeft -= (pageHeight - margin)
       }
 
       const nombreArchivo = `Plan_Nutricional_${paciente.nombre.replace(/ /g, '_')}.pdf`
@@ -261,8 +339,6 @@ export default function PlanPage() {
       console.error('Error generando PDF:', e)
       alert('Error al generar el PDF. Intenta usar el botón Imprimir.')
     } finally {
-      // 3️⃣ Volver a mostrar los botones siempre (aunque haya error)
-      botones.forEach(b => (b.style.display = ''))
       setDescargando(false)
     }
   }
@@ -624,18 +700,42 @@ export default function PlanPage() {
                         )}
                       </div>
 
+                      {!modoEdicion ? (
+                        <button
+                          onClick={iniciarEdicion}
+                          style={{
+                            padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                            border: '1.5px solid #7B1B2A', background: 'white', color: '#7B1B2A',
+                            cursor: 'pointer', fontFamily: "'Lato', sans-serif",
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                          }}
+                        >
+                          ✏️ Editar
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button onClick={guardarEdicion} style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', background: '#2D6A4F', color: 'white', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>
+                            ✅ Guardar
+                          </button>
+                          <button onClick={cancelarEdicion} style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: '1.5px solid #E8DDD0', background: 'white', color: '#6B4F3A', cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+
                       <button
                         onClick={descargarPDF}
-                        disabled={descargando}
+                        disabled={descargando || modoEdicion}
                         style={{
                           padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
                           border: 'none',
-                          background: descargando ? '#E8DDD0' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
-                          color: descargando ? '#9B7B65' : 'white',
-                          cursor: descargando ? 'not-allowed' : 'pointer',
+                          background: (descargando || modoEdicion) ? '#E8DDD0' : 'linear-gradient(135deg, #7B1B2A, #A63244)',
+                          color: (descargando || modoEdicion) ? '#9B7B65' : 'white',
+                          cursor: (descargando || modoEdicion) ? 'not-allowed' : 'pointer',
                           fontFamily: "'Lato', sans-serif",
                           display: 'flex', alignItems: 'center', gap: '6px',
                         }}
+                        title={modoEdicion ? 'Guarda los cambios antes de descargar' : ''}
                       >
                         {descargando
                           ? <><div style={{ width: '12px', height: '12px', border: '2px solid #9B7B65', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Generando...</>
@@ -657,7 +757,28 @@ export default function PlanPage() {
 
                   {/* ── CONTENIDO TAB PLAN ── */}
                   {tab === 'plan' && (
-                    <div>{formatear(planSinExtras || planActual)}</div>
+                    <div>
+                      {modoEdicion ? (
+                        <div>
+                          <p style={{ fontSize: '12px', color: '#9B7B65', marginBottom: '10px' }}>
+                            ✏️ Editando el plan en texto plano — usa formato Markdown. Guarda cuando termines.
+                          </p>
+                          <textarea
+                            value={textoEdicion}
+                            onChange={e => setTextoEdicion(e.target.value)}
+                            style={{
+                              width: '100%', minHeight: '600px', padding: '16px',
+                              borderRadius: '10px', border: '1.5px solid #7B1B2A',
+                              fontSize: '13px', lineHeight: '1.7', color: '#1a1a1a',
+                              fontFamily: 'monospace', resize: 'vertical', outline: 'none',
+                              background: '#FAFAF8', boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div>{formatear(planSinExtras || planActual)}</div>
+                      )}
+                    </div>
                   )}
 
                   {/* ── CONTENIDO TAB SÚPER ── */}
